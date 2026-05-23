@@ -95,6 +95,7 @@ export async function callDeepSeek(
   const res = await fetch('/api/deepseek', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ ...prepared, model }),
   });
 
@@ -105,6 +106,9 @@ export async function callDeepSeek(
     throw new DeepSeekClientError('Invalid response from server');
   }
 
+  if (res.status === 401) {
+    throw new DeepSeekClientError('Session expired — sign in again');
+  }
   if (!res.ok) {
     const raw = typeof data.raw === 'string' ? data.raw : undefined;
     throw new DeepSeekClientError(String(data.error ?? `API error ${res.status}`), { raw });

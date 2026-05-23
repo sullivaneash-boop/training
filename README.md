@@ -62,6 +62,41 @@ curl -X POST http://localhost:3000/api/deepseek \
 
 Production: replace host with your Vercel domain.
 
+## App login (protect API)
+
+Stops strangers from hitting your DeepSeek API. No extra npm packages — cookie session on the server.
+
+### Set password (never commit it)
+
+**Vercel (production):**
+1. Project → Settings → Environment Variables
+2. Add `APP_PASSWORD` = your password
+3. Optional: `AUTH_SECRET` = long random string (session signing; defaults to `APP_PASSWORD`)
+4. Redeploy
+
+**Local:**
+```bash
+# Option A — .env.local (with vercel dev)
+APP_PASSWORD=your-password
+
+# Option B — gitignored file in project root
+echo 'your-password' > .app-password
+```
+
+If `APP_PASSWORD` is **not** set, auth is off (convenient for local dev only).
+
+### Routes
+
+| Route | Purpose |
+|-------|---------|
+| `/login` | Sign in |
+| `POST /api/auth/login` | Sets HttpOnly cookie |
+| `GET /api/auth/check` | Session check |
+| `POST /api/auth/logout` | Clears cookie |
+| `POST /api/deepseek` | Requires valid session when auth enabled |
+
+Apple Shortcuts URL logging (`/shortcut-log`) stays public — it only writes to local storage, no API.
+
 ## DeepSeek API key
 
 1. Create a key at [platform.deepseek.com](https://platform.deepseek.com)

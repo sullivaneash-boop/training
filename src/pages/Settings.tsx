@@ -6,15 +6,18 @@ import { useTrainingData } from '../hooks/useTrainingData';
 import { useDeepSeek } from '../hooks/useDeepSeek';
 import { parseTrainingPlanMarkdown, validatePlan } from '../lib/planParser';
 import { normalizePlanWithAi } from '../lib/deepseek';
+import { logout } from '../lib/auth';
 import {
   exportAllData,
   exportWorkoutsCsv,
   importAllData,
   savePlan,
 } from '../lib/storage';
+import { useNavigate } from 'react-router-dom';
 import type { AiSafetyMode, AthleteGoal, AthleteProfile, DeepSeekModel, Discipline } from '../lib/types';
 
 export function Settings() {
+  const navigate = useNavigate();
   const { plan, athlete, settings, updatePlan, updateAthlete, updateSettings, refresh } =
     useTrainingData();
   const coach = useDeepSeek();
@@ -289,6 +292,22 @@ export function Settings() {
             }}
           />
         </label>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
+          Account
+        </h2>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={async () => {
+            await logout();
+            navigate('/login', { replace: true });
+          }}
+        >
+          Sign out
+        </Button>
       </section>
 
       <section className="space-y-3">
