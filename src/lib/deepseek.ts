@@ -6,6 +6,8 @@ import type {
   DeepSeekMode,
   DeepSeekModel,
   DeepSeekRequest,
+  MotivationalLink,
+  MotivationalLinkType,
   PlanPatch,
   ReadinessCheck,
   TrainingPlan,
@@ -56,18 +58,40 @@ function normalizeCoachResponse(raw: unknown, mode: string): CoachResponse {
   };
 }
 
+function normalizeMotivationalLinks(raw: unknown): MotivationalLink[] {
+  if (!Array.isArray(raw)) return [];
+  const allowed: MotivationalLinkType[] = ['youtube', 'spotify', 'quote', 'other'];
+  return raw
+    .map((item) => {
+      const link = item as Record<string, unknown>;
+      const type = String(link.type ?? 'other');
+      const safeType = allowed.includes(type as MotivationalLinkType)
+        ? (type as MotivationalLinkType)
+        : 'other';
+      return {
+        title: String(link.title ?? '').slice(0, 200),
+        url: String(link.url ?? '').slice(0, 500),
+        type: safeType,
+        note: link.note ? String(link.note).slice(0, 300) : undefined,
+      };
+    })
+    .filter((l) => l.title && (l.type === 'quote' || l.url.startsWith('https://')));
+}
+
 function normalizeApiPayload(data: Record<string, unknown>, mode: DeepSeekMode): DeepSeekApiResponse {
   const coach = normalizeCoachResponse(data.coach ?? data, mode);
   const assistantMessage = String(
     data.assistantMessage ?? coach.summary ?? 'Response received.',
   );
   const planPatch = normalizePlanPatch(data.planPatch);
+  const motivationalLinks = normalizeMotivationalLinks(data.motivationalLinks);
 
   return {
     coach: { ...coach, summary: coach.summary || assistantMessage },
     assistantMessage,
     planPatch: planPatch ?? undefined,
     plan: data.plan as TrainingPlan | undefined,
+    motivationalLinks: motivationalLinks.length ? motivationalLinks : undefined,
   };
 }
 
@@ -80,7 +104,7 @@ export function prepareDeepSeekRequest(req: DeepSeekRequest): DeepSeekRequest {
   if (req.rawMarkdown) {
     prepared.rawMarkdown = req.rawMarkdown.slice(0, 80000);
   }
-  if (req.mode === 'plan_assistant') {
+  if (req.mode === 'plan_assistant' || req.mode === 'mood_boost') {
     prepared.rawMarkdown = undefined;
   }
   return prepared;

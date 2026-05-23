@@ -135,7 +135,17 @@ export type DeepSeekMode =
   | 'weekly_review'
   | 'race_weakness_scan'
   | 'today_coach'
-  | 'plan_assistant';
+  | 'plan_assistant'
+  | 'mood_boost';
+
+export type MotivationalLinkType = 'youtube' | 'spotify' | 'quote' | 'other';
+
+export type MotivationalLink = {
+  title: string;
+  url: string;
+  type: MotivationalLinkType;
+  note?: string;
+};
 
 export type ChatMessage = {
   id: string;
@@ -199,6 +209,7 @@ export type DeepSeekApiResponse = {
   plan?: TrainingPlan;
   planPatch?: PlanPatch;
   assistantMessage?: string;
+  motivationalLinks?: MotivationalLink[];
 };
 
 export type CoachInsight = {

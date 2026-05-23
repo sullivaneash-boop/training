@@ -20,7 +20,8 @@ type DeepSeekMode =
   | 'weekly_review'
   | 'race_weakness_scan'
   | 'today_coach'
-  | 'plan_assistant';
+  | 'plan_assistant'
+  | 'mood_boost';
 
 const MODE_INSTRUCTIONS: Record<DeepSeekMode, string> = {
   normalize_plan: `Mode: normalize_plan. Parse markdown into TrainingPlan + coach. Return {"coach":..., "plan":...}. Omit fields you cannot verify.`,
@@ -36,6 +37,25 @@ const MODE_INSTRUCTIONS: Record<DeepSeekMode, string> = {
   race_weakness_scan: `Mode: race_weakness_scan. Rank race-day risks. Return {"coach":...}.`,
 
   today_coach: `Mode: today_coach. What to do today. Return {"coach":...}.`,
+
+  mood_boost: `Mode: mood_boost. Short mood / energy check-in for athletes (supportive, not clinical therapy).
+
+RETURN FORMAT:
+{
+  "assistantMessage": "2-4 sentences the athlete reads in chat",
+  "coach": ${COACH_JSON_EXAMPLE},
+  "motivationalLinks": [
+    {"title":"string","url":"https://...","type":"youtube|spotify|quote|other","note":"optional"}
+  ]
+}
+
+CONVERSATION:
+- If the chat has NO substantive user replies yet: ask 2-4 brief questions about mood, energy, stress, and what they need (lift, calm, focus, distraction). Put the same questions in coach.questionsForUser. Omit motivationalLinks or use [].
+- After the user answers: empathize in assistantMessage. Put 2-3 short motivational quotes (plain text) in coach.keyFindings. Set coach.recommendedAction to one concrete next step. Include 4-6 motivationalLinks:
+  - youtube: real https://www.youtube.com/results?search_query=... or well-known video URLs you trust
+  - spotify: https://open.spotify.com/search/... or known playlist URLs — never guess playlist IDs
+  - quote: type "quote", put the quote text in title, url may be empty string
+- Use search URLs when unsure. No broken links.`,
 
   plan_assistant: `Mode: plan_assistant. Conversational plan adapter.
 
@@ -193,7 +213,7 @@ The word json appears in these instructions. Output one json object.`;
   ];
 
   const chatHistory = (body.messages ?? []).slice(-20);
-  if (mode === 'plan_assistant' && chatHistory.length > 0) {
+  if ((mode === 'plan_assistant' || mode === 'mood_boost') && chatHistory.length > 0) {
     for (const msg of chatHistory) {
       apiMessages.push({
         role: msg.role === 'assistant' ? 'assistant' : 'user',
@@ -240,11 +260,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ? 4000
       : mode === 'plan_assistant'
         ? 1024
-        : mode === 'missed_workout_fix'
-          ? 1200
-          : 900;
+        : mode === 'mood_boost'
+          ? 1100
+          : mode === 'missed_workout_fix'
+            ? 1200
+            : 900;
 
-  const temperature = mode === 'plan_assistant' ? 0.4 : 0.35;
+  const temperature = mode === 'plan_assistant' || mode === 'mood_boost' ? 0.4 : 0.35;
 
   try {
     let content = await callUpstream(
@@ -300,6 +322,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (patch) {
         response.planPatch = patch;
       }
+    }
+
+    if (mode === 'mood_boost' && Array.isArray(parsed.motivationalLinks)) {
+      response.motivationalLinks = parsed.motivationalLinks
+        .map((item) => {
+          const link = item as Record<string, unknown>;
+          const type = String(link.type ?? 'other');
+          const safeType = ['youtube', 'spotify', 'quote', 'other'].includes(type)
+            ? type
+            : 'other';
+          return {
+            title: String(link.title ?? '').slice(0, 200),
+            url: String(link.url ?? '').slice(0, 500),
+            type: safeType,
+            note: link.note ? String(link.note).slice(0, 300) : undefined,
+          };
+        })
+        .filter((l) => l.title && (l.type === 'quote' || l.url.startsWith('https://')));
     }
 
     return res.status(200).json(response);

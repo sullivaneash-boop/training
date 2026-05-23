@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ActionCard } from '../components/ActionCard';
 import { Card } from '../components/Card';
+import { MoodBoostPanel } from '../components/MoodBoostPanel';
 import { PageHeader } from '../components/PageHeader';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { CoachPanel } from '../components/CoachPanel';
@@ -12,6 +13,7 @@ import { isAiEnabled } from '../lib/storage';
 
 const MODES: { id: DeepSeekMode; title: string; description: string }[] = [
   { id: 'today_coach', title: 'Today Coach', description: 'Plan + readiness for what to do today.' },
+  { id: 'mood_boost', title: 'Mood Boost', description: 'Check-in on how you feel — get videos, playlists, and quotes.' },
   { id: 'daily_debrief', title: 'Analyze Workout', description: 'Break down your latest logged session.' },
   { id: 'missed_workout_fix', title: 'Fix Missed Workouts', description: 'Reshuffle without cramming.' },
   { id: 'weekly_review', title: 'Weekly Review', description: 'Week vs plan — am I on track?' },
@@ -57,12 +59,17 @@ export function Coach() {
             title={m.title}
             description={m.description}
             selected={mode === m.id}
-            onClick={() => setMode(m.id)}
+            onClick={() => {
+              setMode(m.id);
+              coach.clear();
+            }}
           />
         ))}
       </div>
 
-      {mode && (
+      {mode === 'mood_boost' && <MoodBoostPanel />}
+
+      {mode && mode !== 'mood_boost' && (
         <div className="space-y-4">
           <div>
             <Label>Notes for {selected?.title} (optional)</Label>
@@ -86,14 +93,16 @@ export function Coach() {
         </div>
       )}
 
-      <CoachPanel
-        response={coach.response}
-        loading={coach.loading}
-        error={coach.error}
-        rawJson={coach.rawJson}
-        showDebug={settings.showJsonDebug}
-        onDismiss={coach.clear}
-      />
+      {mode !== 'mood_boost' && (
+        <CoachPanel
+          response={coach.response}
+          loading={coach.loading}
+          error={coach.error}
+          rawJson={coach.rawJson}
+          showDebug={settings.showJsonDebug}
+          onDismiss={coach.clear}
+        />
+      )}
 
       {insights.length > 0 && (
         <div className="space-y-2">
