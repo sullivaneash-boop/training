@@ -43,7 +43,8 @@ type DeepSeekMode =
   | 'missed_workout_fix'
   | 'weekly_review'
   | 'race_weakness_scan'
-  | 'today_coach';
+  | 'today_coach'
+  | 'plan_assistant';
 
 const MODE_INSTRUCTIONS: Record<DeepSeekMode, string> = {
   normalize_plan: `Mode: normalize_plan.
@@ -83,6 +84,27 @@ Return CoachResponse json.`,
 Given today's plan, recent logs, readiness, and optional user question — recommend what to do today.
 Useful coach tone, not generic motivation.
 Return CoachResponse json.`,
+
+  plan_assistant: `Mode: plan_assistant.
+You are a training-plan assistant in an ongoing conversation. Help the athlete adapt their plan to real life.
+
+You CAN adapt: startDate, raceDate, totalWeeks, phase boundaries, weekly targetHours, longRide/longRun/longSwim, keyFocus, plannedSessions, and notes.
+Use workout logs and readiness to judge if they are ahead, behind, or on track.
+
+Rules:
+- Ask 1-2 clarifying questions when critical info is missing (dates, injury, how far behind).
+- When you have enough detail to make a concrete schedule change, include the full updated "plan" object.
+- If only discussing options, omit "plan" and explain tradeoffs in assistantMessage.
+- Preserve plan.id from context when updating. Keep rawMarkdown from context; you may append a short "Adapted on DATE: reason" line.
+- Do not cram volume. Protect recovery. Shoulder-aware swim ramps.
+- Be conversational in assistantMessage (2-5 sentences). Put structured bullets in coach.keyFindings.
+
+Return json:
+{
+  "coach": ${COACH_JSON_EXAMPLE},
+  "assistantMessage": "string — the chat reply the athlete reads",
+  "plan": ${PLAN_JSON_EXAMPLE} // optional — only when proposing an apply-able plan update
+}`,
 };
 
 interface RequestBody {
@@ -98,6 +120,7 @@ interface RequestBody {
   latestWorkoutId?: string;
   model?: string;
   deterministicReadiness?: { result: string; reason: string };
+  messages?: { role: 'user' | 'assistant'; content: string }[];
 }
 
 function emptyCoach(mode: string): Record<string, unknown> {
@@ -177,7 +200,34 @@ Respond with a single json object. Example coach: ${COACH_JSON_EXAMPLE}`;
   };
 
   const maxTokens =
-    mode === 'normalize_plan' ? 4000 : mode === 'missed_workout_fix' ? 1200 : 900;
+    mode === 'normalize_plan' || mode === 'plan_assistant'
+      ? 4000
+      : mode === 'missed_workout_fix'
+        ? 1200
+        : 900;
+
+  const chatHistory = (body.messages ?? []).slice(-24);
+  const apiMessages: { role: string; content: string }[] = [
+    { role: 'system', content: systemPrompt },
+    {
+      role: 'user',
+      content: `Reference context json (current plan, logs, athlete):\n${JSON.stringify(userPayload)}`,
+    },
+  ];
+
+  if (mode === 'plan_assistant' && chatHistory.length > 0) {
+    for (const msg of chatHistory) {
+      apiMessages.push({
+        role: msg.role === 'assistant' ? 'assistant' : 'user',
+        content: msg.content,
+      });
+    }
+  } else {
+    apiMessages.push({
+      role: 'user',
+      content: `Analyze this json input and return your json response:\n${JSON.stringify(userPayload)}`,
+    });
+  }
 
   try {
     const upstream = await fetch(DEEPSEEK_URL, {
@@ -188,14 +238,8 @@ Respond with a single json object. Example coach: ${COACH_JSON_EXAMPLE}`;
       },
       body: JSON.stringify({
         model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          {
-            role: 'user',
-            content: `Analyze this json input and return your json response:\n${JSON.stringify(userPayload)}`,
-          },
-        ],
-        temperature: 0.35,
+        messages: apiMessages,
+        temperature: mode === 'plan_assistant' ? 0.45 : 0.35,
         max_tokens: maxTokens,
         response_format: { type: 'json_object' },
       }),
@@ -225,9 +269,16 @@ Respond with a single json object. Example coach: ${COACH_JSON_EXAMPLE}`;
       (parsed.mode ? parsed : emptyCoach(mode));
     const coach = normalizeCoach(coachRaw, mode);
 
-    const response: { coach: unknown; plan?: unknown } = { coach };
+    const assistantMessage = String(
+      parsed.assistantMessage ?? (parsed.coach as Record<string, unknown>)?.summary ?? coach.summary,
+    );
 
-    if (mode === 'normalize_plan' && parsed.plan) {
+    const response: { coach: unknown; plan?: unknown; assistantMessage: string } = {
+      coach,
+      assistantMessage,
+    };
+
+    if ((mode === 'normalize_plan' || mode === 'plan_assistant') && parsed.plan) {
       response.plan = parsed.plan;
     }
 

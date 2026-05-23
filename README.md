@@ -101,6 +101,7 @@ Toggle in **Settings → AI settings**.
 | `weekly_review` | Week / AI Coach tab | Completed vs planned |
 | `race_weakness_scan` | Week / AI Coach tab | Race-day exposure ranked |
 | `today_coach` | Today → Ask DeepSeek | What to do today |
+| `plan_assistant` | **Chat button** (bottom-right) | Conversational plan adaptation — shift dates, volume, phases; apply changes to your plan |
 
 All modes return structured JSON:
 
@@ -118,6 +119,18 @@ All modes return structured JSON:
 ```
 
 Responses are saved as `CoachInsight` in localStorage (copyable, dismissable, optional raw JSON debug).
+
+### Plan Assistant (chat)
+
+Tap the **blue chat button** above the tab bar on any screen. Multi-turn conversation with your full plan, logs, and readiness in context.
+
+Example requests:
+- "I can't start until June 2"
+- "I'm crushing workouts — move me up one week"
+- "I'm sick — push everything back 5 days without cramming"
+- "Change race date to November 1"
+
+When the assistant proposes a schedule change, tap **Apply to my plan**. Workout history is kept; only the active plan updates.
 
 ## Deploy to Vercel
 

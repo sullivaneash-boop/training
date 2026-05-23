@@ -134,7 +134,22 @@ export type DeepSeekMode =
   | 'missed_workout_fix'
   | 'weekly_review'
   | 'race_weakness_scan'
-  | 'today_coach';
+  | 'today_coach'
+  | 'plan_assistant';
+
+export type ChatMessage = {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  hasPlanProposal?: boolean;
+  createdAt: string;
+};
+
+export type ChatSession = {
+  planId: string;
+  messages: ChatMessage[];
+  updatedAt: string;
+};
 
 export type CoachSignal = 'green' | 'yellow' | 'red' | 'neutral';
 
@@ -166,11 +181,13 @@ export type DeepSeekRequest = {
   latestWorkoutId?: string;
   model?: DeepSeekModel;
   deterministicReadiness?: { result: string; reason: string };
+  messages?: { role: 'user' | 'assistant'; content: string }[];
 };
 
 export type DeepSeekApiResponse = {
   coach: CoachResponse;
   plan?: TrainingPlan;
+  assistantMessage?: string;
 };
 
 export type CoachInsight = {
