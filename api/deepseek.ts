@@ -1,40 +1,15 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { parseModelJson } from './parseJson';
 
 const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
 const DEFAULT_MODEL = 'deepseek-v4-flash';
 
-const COACH_JSON_EXAMPLE = `{
-  "mode": "weekly_review",
-  "summary": "string",
-  "signal": "green|yellow|red|neutral",
-  "keyFindings": ["string"],
-  "recommendedAction": "string",
-  "adjustments": [{"action":"string","reason":"string","priority":"low|medium|high"}],
-  "warningFlags": ["string"],
-  "questionsForUser": ["string"]
-}`;
+const COACH_JSON_EXAMPLE = `{"mode":"plan_assistant","summary":"string","signal":"green","keyFindings":[],"recommendedAction":"string","adjustments":[],"warningFlags":[],"questionsForUser":[]}`;
 
-const PLAN_JSON_EXAMPLE = `{
-  "id": "string",
-  "name": "string",
-  "raceName": "string",
-  "raceDate": "YYYY-MM-DD",
-  "startDate": "YYYY-MM-DD",
-  "totalWeeks": 21,
-  "sportTypes": ["swim","bike","run"],
-  "phases": [{"name":"Base","startWeek":1,"endWeek":6,"goal":"string"}],
-  "weeks": [{"week":1,"phase":"Base","targetHours":5,"longRide":"string","longRun":"string","longSwim":"string","keyFocus":"string","plannedSessions":[{"day":"mon","type":"swim","title":"string","details":"string"}],"notes":[]}],
-  "rules": ["string"],
-  "readinessWarnings": ["string"],
-  "gearChecklist": ["string"],
-  "raceNotes": ["string"],
-  "rawMarkdown": "string",
-  "createdAt": "ISO-8601"
-}`;
+const PLAN_PATCH_EXAMPLE = `{"startDate":"2026-06-01","adaptationNote":"Start moved after camping"}`;
 
-const SYSTEM_PREFIX = `You are a pragmatic endurance coach for age-group athletes.
-Be direct, practical, and specific. Not medical advice. No disclaimers.
-Always respond with valid json only.`;
+const SYSTEM_PREFIX = `You are a pragmatic endurance coach. Not medical advice.
+You MUST respond with a single valid json object only. No markdown fences. No prose outside json.`;
 
 type DeepSeekMode =
   | 'normalize_plan'
@@ -47,64 +22,35 @@ type DeepSeekMode =
   | 'plan_assistant';
 
 const MODE_INSTRUCTIONS: Record<DeepSeekMode, string> = {
-  normalize_plan: `Mode: normalize_plan.
-Parse the uploaded training plan markdown into the TrainingPlan json schema.
-Leave fields blank if unsure — do not invent sessions or dates.
-Include phases, weeks with targets, plannedSessions when explicit in markdown, rules, readinessWarnings, gearChecklist, raceNotes when present.
-Return json with two top-level keys: "coach" (CoachResponse with mode normalize_plan) and "plan" (TrainingPlan).
-Coach summary should note what was extracted and any gaps.
-Example plan shape: ${PLAN_JSON_EXAMPLE}
-Example coach shape: ${COACH_JSON_EXAMPLE}`,
+  normalize_plan: `Mode: normalize_plan. Parse markdown into TrainingPlan + coach. Return {"coach":..., "plan":...}. Omit fields you cannot verify.`,
 
-  daily_debrief: `Mode: daily_debrief.
-Analyze the latest workout log against the current training week.
-Return CoachResponse json. What went well, what looks risky, what tomorrow should consider.`,
+  daily_debrief: `Mode: daily_debrief. Return {"coach":...} analyzing latest workout.`,
 
-  readiness_explain: `Mode: readiness_explain.
-The deterministic readiness result is provided. Explain it in plain language.
-You may respectfully challenge the deterministic result if data suggests otherwise — explain why.
-Return CoachResponse json with practical adjustment in recommendedAction.`,
+  readiness_explain: `Mode: readiness_explain. Explain deterministic readiness. Return {"coach":...}.`,
 
-  missed_workout_fix: `Mode: missed_workout_fix.
-Reshuffle missed sessions in the current week without cramming.
-Never stack hard run + hard bike + heavy legs unless clearly justified.
-Protect swim shoulder and run joints.
-Return CoachResponse json with adjustments array listing specific session moves.`,
+  missed_workout_fix: `Mode: missed_workout_fix. Reshuffle week without cramming. Return {"coach":...} with adjustments.`,
 
-  weekly_review: `Mode: weekly_review.
-Compare completed workouts vs planned week. Find patterns. Recommend next-week adjustments while keeping plan intent.
-Return CoachResponse json.`,
+  weekly_review: `Mode: weekly_review. Compare logs vs plan week. Return {"coach":...}.`,
 
-  race_weakness_scan: `Mode: race_weakness_scan.
-Identify what would expose the athlete on race day right now. Rank weaknesses by priority.
-Include one practical fix per weakness in adjustments.
-Return CoachResponse json.`,
+  race_weakness_scan: `Mode: race_weakness_scan. Rank race-day risks. Return {"coach":...}.`,
 
-  today_coach: `Mode: today_coach.
-Given today's plan, recent logs, readiness, and optional user question — recommend what to do today.
-Useful coach tone, not generic motivation.
-Return CoachResponse json.`,
+  today_coach: `Mode: today_coach. What to do today. Return {"coach":...}.`,
 
-  plan_assistant: `Mode: plan_assistant.
-You are a training-plan assistant in an ongoing conversation. Help the athlete adapt their plan to real life.
+  plan_assistant: `Mode: plan_assistant. Conversational plan adapter.
 
-You CAN adapt: startDate, raceDate, totalWeeks, phase boundaries, weekly targetHours, longRide/longRun/longSwim, keyFocus, plannedSessions, and notes.
-Use workout logs and readiness to judge if they are ahead, behind, or on track.
-
-Rules:
-- Ask 1-2 clarifying questions when critical info is missing (dates, injury, how far behind).
-- When you have enough detail to make a concrete schedule change, include the full updated "plan" object.
-- If only discussing options, omit "plan" and explain tradeoffs in assistantMessage.
-- Preserve plan.id from context when updating. Keep rawMarkdown from context; you may append a short "Adapted on DATE: reason" line.
-- Do not cram volume. Protect recovery. Shoulder-aware swim ramps.
-- Be conversational in assistantMessage (2-5 sentences). Put structured bullets in coach.keyFindings.
-
-Return json:
+RETURN FORMAT (small json only):
 {
+  "assistantMessage": "2-5 sentences the athlete reads in chat",
   "coach": ${COACH_JSON_EXAMPLE},
-  "assistantMessage": "string — the chat reply the athlete reads",
-  "plan": ${PLAN_JSON_EXAMPLE} // optional — only when proposing an apply-able plan update
-}`,
+  "planPatch": ${PLAN_PATCH_EXAMPLE}
+}
+
+RULES:
+- NEVER return a full TrainingPlan or weeks array — use planPatch only.
+- planPatch fields (all optional): startDate, raceDate, totalWeeks, shiftPhasesWeeksBy, adaptationNote.
+- Omit planPatch when only discussing options or asking questions.
+- When athlete confirms a change (e.g. "yes June 1"), include planPatch with ISO dates.
+- Preserve race date unless they ask to change it.`,
 };
 
 interface RequestBody {
@@ -121,18 +67,19 @@ interface RequestBody {
   model?: string;
   deterministicReadiness?: { result: string; reason: string };
   messages?: { role: 'user' | 'assistant'; content: string }[];
+  _retry?: boolean;
 }
 
-function emptyCoach(mode: string): Record<string, unknown> {
+function emptyCoach(mode: string) {
   return {
     mode,
     summary: '',
-    signal: 'neutral',
-    keyFindings: [],
+    signal: 'neutral' as const,
+    keyFindings: [] as string[],
     recommendedAction: '',
-    adjustments: [],
-    warningFlags: [],
-    questionsForUser: [],
+    adjustments: [] as { action: string; reason: string; priority: string }[],
+    warningFlags: [] as string[],
+    questionsForUser: [] as string[],
   };
 }
 
@@ -164,6 +111,112 @@ function normalizeCoach(raw: Record<string, unknown>, mode: string) {
   };
 }
 
+function normalizePlanPatch(raw: unknown): Record<string, unknown> | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const p = raw as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  if (typeof p.startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.startDate)) {
+    out.startDate = p.startDate;
+  }
+  if (typeof p.raceDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.raceDate)) {
+    out.raceDate = p.raceDate;
+  }
+  if (typeof p.totalWeeks === 'number') out.totalWeeks = p.totalWeeks;
+  if (typeof p.shiftPhasesWeeksBy === 'number') out.shiftPhasesWeeksBy = p.shiftPhasesWeeksBy;
+  if (typeof p.adaptationNote === 'string') out.adaptationNote = p.adaptationNote.slice(0, 500);
+  return Object.keys(out).length ? out : null;
+}
+
+async function callUpstream(
+  apiKey: string,
+  model: string,
+  messages: { role: string; content: string }[],
+  maxTokens: number,
+  temperature: number,
+): Promise<string> {
+  const upstream = await fetch(DEEPSEEK_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature,
+      max_tokens: maxTokens,
+      response_format: { type: 'json_object' },
+    }),
+  });
+
+  if (!upstream.ok) {
+    const errText = await upstream.text();
+    throw new Error(errText.slice(0, 400));
+  }
+
+  const data = (await upstream.json()) as {
+    choices?: { message?: { content?: string } }[];
+  };
+  return data.choices?.[0]?.message?.content ?? '{}';
+}
+
+function buildMessages(body: RequestBody, mode: DeepSeekMode, retry: boolean) {
+  const systemPrompt = `${SYSTEM_PREFIX}
+
+${MODE_INSTRUCTIONS[mode]}
+
+The word json appears in these instructions. Output one json object.`;
+
+  const userPayload = {
+    mode,
+    date: body.date ?? new Date().toISOString().slice(0, 10),
+    plan: body.plan,
+    athleteProfile: body.athleteProfile,
+    workoutLogs: body.workoutLogs,
+    readinessChecks: body.readinessChecks,
+    userQuestion: body.userQuestion,
+    missedSessionTypes: body.missedSessionTypes,
+    latestWorkoutId: body.latestWorkoutId,
+    deterministicReadiness: body.deterministicReadiness,
+    ...(mode === 'normalize_plan' && body.rawMarkdown
+      ? { rawMarkdown: body.rawMarkdown }
+      : {}),
+  };
+
+  const apiMessages: { role: string; content: string }[] = [
+    { role: 'system', content: systemPrompt },
+    {
+      role: 'user',
+      content: `Context json:\n${JSON.stringify(userPayload)}`,
+    },
+  ];
+
+  const chatHistory = (body.messages ?? []).slice(-20);
+  if (mode === 'plan_assistant' && chatHistory.length > 0) {
+    for (const msg of chatHistory) {
+      apiMessages.push({
+        role: msg.role === 'assistant' ? 'assistant' : 'user',
+        content: msg.content.slice(0, 4000),
+      });
+    }
+  } else {
+    apiMessages.push({
+      role: 'user',
+      content: 'Return your json response for this request.',
+    });
+  }
+
+  if (retry) {
+    apiMessages.push({
+      role: 'user',
+      content:
+        'Your last reply was invalid or truncated json. Reply again with ONLY a compact json object. For plan changes use planPatch only, never the full plan.',
+    });
+  }
+
+  return apiMessages;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -179,88 +232,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const model =
     body.model === 'deepseek-v4-pro' ? 'deepseek-v4-pro' : DEFAULT_MODEL;
 
-  const systemPrompt = `${SYSTEM_PREFIX}
-
-${MODE_INSTRUCTIONS[mode] ?? MODE_INSTRUCTIONS.today_coach}
-
-Respond with a single json object. Example coach: ${COACH_JSON_EXAMPLE}`;
-
-  const userPayload = {
-    mode,
-    date: body.date ?? new Date().toISOString().slice(0, 10),
-    plan: body.plan,
-    rawMarkdown: body.rawMarkdown?.slice(0, 120000),
-    athleteProfile: body.athleteProfile,
-    workoutLogs: body.workoutLogs?.slice(-40),
-    readinessChecks: body.readinessChecks?.slice(-14),
-    userQuestion: body.userQuestion,
-    missedSessionTypes: body.missedSessionTypes,
-    latestWorkoutId: body.latestWorkoutId,
-    deterministicReadiness: body.deterministicReadiness,
-  };
-
   const maxTokens =
-    mode === 'normalize_plan' || mode === 'plan_assistant'
+    mode === 'normalize_plan'
       ? 4000
-      : mode === 'missed_workout_fix'
-        ? 1200
-        : 900;
+      : mode === 'plan_assistant'
+        ? 1024
+        : mode === 'missed_workout_fix'
+          ? 1200
+          : 900;
 
-  const chatHistory = (body.messages ?? []).slice(-24);
-  const apiMessages: { role: string; content: string }[] = [
-    { role: 'system', content: systemPrompt },
-    {
-      role: 'user',
-      content: `Reference context json (current plan, logs, athlete):\n${JSON.stringify(userPayload)}`,
-    },
-  ];
-
-  if (mode === 'plan_assistant' && chatHistory.length > 0) {
-    for (const msg of chatHistory) {
-      apiMessages.push({
-        role: msg.role === 'assistant' ? 'assistant' : 'user',
-        content: msg.content,
-      });
-    }
-  } else {
-    apiMessages.push({
-      role: 'user',
-      content: `Analyze this json input and return your json response:\n${JSON.stringify(userPayload)}`,
-    });
-  }
+  const temperature = mode === 'plan_assistant' ? 0.4 : 0.35;
 
   try {
-    const upstream = await fetch(DEEPSEEK_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: apiMessages,
-        temperature: mode === 'plan_assistant' ? 0.45 : 0.35,
-        max_tokens: maxTokens,
-        response_format: { type: 'json_object' },
-      }),
-    });
+    let content = await callUpstream(
+      apiKey,
+      model,
+      buildMessages(body, mode, false),
+      maxTokens,
+      temperature,
+    );
 
-    if (!upstream.ok) {
-      const errText = await upstream.text();
-      return res.status(upstream.status).json({ error: errText });
+    let parsed = parseModelJson(content);
+    if (!parsed && mode === 'plan_assistant') {
+      content = await callUpstream(
+        apiKey,
+        model,
+        buildMessages(body, mode, true),
+        maxTokens,
+        0.2,
+      );
+      parsed = parseModelJson(content);
     }
 
-    const data = (await upstream.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
-    const content = data.choices?.[0]?.message?.content ?? '{}';
-    let parsed: Record<string, unknown>;
-    try {
-      parsed = JSON.parse(content);
-    } catch {
+    if (!parsed) {
       return res.status(502).json({
-        error: 'Model returned invalid json',
-        raw: content.slice(0, 500),
+        error: 'Could not parse model response',
+        raw: content.slice(0, 600),
       });
     }
 
@@ -270,16 +277,26 @@ Respond with a single json object. Example coach: ${COACH_JSON_EXAMPLE}`;
     const coach = normalizeCoach(coachRaw, mode);
 
     const assistantMessage = String(
-      parsed.assistantMessage ?? (parsed.coach as Record<string, unknown>)?.summary ?? coach.summary,
+      parsed.assistantMessage ??
+        (parsed.coach as Record<string, unknown>)?.summary ??
+        coach.summary ??
+        'Got it.',
     );
 
-    const response: { coach: unknown; plan?: unknown; assistantMessage: string } = {
-      coach,
+    const response: Record<string, unknown> = {
+      coach: { ...coach, summary: coach.summary || assistantMessage },
       assistantMessage,
     };
 
-    if ((mode === 'normalize_plan' || mode === 'plan_assistant') && parsed.plan) {
+    if (mode === 'normalize_plan' && parsed.plan) {
       response.plan = parsed.plan;
+    }
+
+    if (mode === 'plan_assistant') {
+      const patch = normalizePlanPatch(parsed.planPatch);
+      if (patch) {
+        response.planPatch = patch;
+      }
     }
 
     return res.status(200).json(response);

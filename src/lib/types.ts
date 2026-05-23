@@ -184,9 +184,20 @@ export type DeepSeekRequest = {
   messages?: { role: 'user' | 'assistant'; content: string }[];
 };
 
+/** Small delta from plan_assistant — avoids returning the full plan JSON (which truncates). */
+export type PlanPatch = {
+  startDate?: string;
+  raceDate?: string;
+  totalWeeks?: number;
+  /** Shift phase week numbers (e.g. +1 to push build back one week) */
+  shiftPhasesWeeksBy?: number;
+  adaptationNote?: string;
+};
+
 export type DeepSeekApiResponse = {
   coach: CoachResponse;
   plan?: TrainingPlan;
+  planPatch?: PlanPatch;
   assistantMessage?: string;
 };
 

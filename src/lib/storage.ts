@@ -4,6 +4,7 @@ import type {
   ChatMessage,
   ChatSession,
   CoachInsight,
+  PlanPatch,
   ReadinessCheck,
   TrainingPlan,
   WorkoutLog,
@@ -211,6 +212,33 @@ export function appendChatMessage(planId: string, msg: Omit<ChatMessage, 'id' | 
 
 export function clearChatSession(planId: string): void {
   saveChatSession({ planId, messages: [], updatedAt: new Date().toISOString() });
+}
+
+export function applyPlanPatch(existing: TrainingPlan, patch: PlanPatch): TrainingPlan {
+  const note =
+    patch.adaptationNote ??
+    `Plan adapted ${new Date().toISOString().slice(0, 10)} (assistant).`;
+
+  let phases = existing.phases;
+  if (patch.shiftPhasesWeeksBy) {
+    const n = patch.shiftPhasesWeeksBy;
+    phases = existing.phases.map((p) => ({
+      ...p,
+      startWeek: p.startWeek + n,
+      endWeek: p.endWeek + n,
+    }));
+  }
+
+  return {
+    ...existing,
+    startDate: patch.startDate ?? existing.startDate,
+    raceDate: patch.raceDate ?? existing.raceDate,
+    totalWeeks: patch.totalWeeks ?? existing.totalWeeks,
+    phases,
+    rawMarkdown: existing.rawMarkdown.includes(note)
+      ? existing.rawMarkdown
+      : `${existing.rawMarkdown}\n\n---\n_${note}_`,
+  };
 }
 
 export function mergePlanUpdate(existing: TrainingPlan, proposed: TrainingPlan): TrainingPlan {

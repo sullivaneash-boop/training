@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePlanAssistant } from '../context/PlanAssistantContext';
-import { callDeepSeek } from '../lib/deepseek';
+import { callDeepSeek, DeepSeekClientError } from '../lib/deepseek';
+import { inferPlanPatchFromText, normalizePlanPatch } from '../lib/planPatchInfer';
 import { validatePlan } from '../lib/planParser';
 import {
   appendChatMessage,
+  applyPlanPatch,
   clearChatSession,
   isAiEnabled,
   loadChatSession,
   mergePlanUpdate,
   savePlan,
 } from '../lib/storage';
-import type { TrainingPlan } from '../lib/types';
+import type { PlanPatch, TrainingPlan } from '../lib/types';
 import { useTrainingData } from '../hooks/useTrainingData';
 import { Button } from './FormField';
 
@@ -22,13 +24,29 @@ const QUICK_PROMPTS = [
   'Reduce volume this week — life got busy',
 ];
 
+function applyPatchOrPlan(
+  plan: TrainingPlan,
+  patch: PlanPatch | null,
+  fullPlan: TrainingPlan | undefined,
+): { merged: TrainingPlan; patch: PlanPatch | null } {
+  if (patch) {
+    return { merged: applyPlanPatch(plan, patch), patch };
+  }
+  if (fullPlan) {
+    return { merged: mergePlanUpdate(plan, { ...fullPlan, id: plan.id }), patch: null };
+  }
+  return { merged: plan, patch: null };
+}
+
 export function PlanAssistantChat() {
   const { plan, athlete, workouts, readiness, settings, updatePlan, refresh } = useTrainingData();
   const { isOpen: open, setOpen, close } = usePlanAssistant();
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null);
   const [pendingPlan, setPendingPlan] = useState<TrainingPlan | null>(null);
+  const [pendingPatch, setPendingPatch] = useState<PlanPatch | null>(null);
   const [messages, setMessages] = useState(() =>
     plan ? loadChatSession(plan.id).messages : [],
   );
@@ -47,25 +65,24 @@ export function PlanAssistantChat() {
 
   if (!plan || !isAiEnabled()) return null;
 
-  async function sendMessage(text: string) {
+  async function sendMessage(text: string, isRetry = false) {
     const trimmed = text.trim();
     if (!trimmed || loading || !plan) return;
 
     setError(null);
-    setPendingPlan(null);
-    setInput('');
+    if (!isRetry) {
+      setPendingPlan(null);
+      setPendingPatch(null);
+      setLastFailedMessage(null);
+      setInput('');
+      appendChatMessage(plan.id, { role: 'user', content: trimmed });
+    }
     setLoading(true);
 
-    appendChatMessage(plan.id, { role: 'user', content: trimmed });
     const history = [...loadChatSession(plan.id).messages];
     setMessages(history);
 
     try {
-      const apiMessages = history.map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
-
       const result = await callDeepSeek(
         {
           mode: 'plan_assistant',
@@ -73,28 +90,54 @@ export function PlanAssistantChat() {
           athleteProfile: athlete ?? undefined,
           workoutLogs: workouts,
           readinessChecks: readiness,
-          messages: apiMessages,
+          messages: history.map((m) => ({ role: m.role, content: m.content })),
           date: new Date().toISOString().slice(0, 10),
         },
         settings.deepseekModel,
       );
 
+      let patch = result.planPatch ? normalizePlanPatch(result.planPatch) : null;
+      if (!patch && !result.plan) {
+        patch = inferPlanPatchFromText(trimmed, plan);
+      }
+
       const reply =
         result.assistantMessage ?? result.coach.summary ?? 'Done — see details below.';
-      const hasPlan = Boolean(result.plan);
+      const hasChange = Boolean(patch || result.plan);
 
       appendChatMessage(plan.id, {
         role: 'assistant',
         content: reply,
-        hasPlanProposal: hasPlan,
+        hasPlanProposal: hasChange,
       });
       setMessages(loadChatSession(plan.id).messages);
 
-      if (result.plan) {
-        setPendingPlan(mergePlanUpdate(plan, { ...result.plan, id: plan.id }));
+      if (hasChange) {
+        const { merged, patch: usedPatch } = applyPatchOrPlan(plan, patch, result.plan);
+        setPendingPatch(usedPatch);
+        setPendingPlan(merged);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not reach coach');
+      const inferred = inferPlanPatchFromText(trimmed, plan);
+      if (e instanceof DeepSeekClientError) {
+        setError(e.message);
+        setLastFailedMessage(trimmed);
+        if (inferred) {
+          setPendingPatch(inferred);
+          setPendingPlan(applyPlanPatch(plan, inferred));
+          appendChatMessage(plan.id, {
+            role: 'assistant',
+            content:
+              'The coach had a hiccup parsing its reply, but I detected your date change locally. Review and apply below if it looks right.',
+            hasPlanProposal: true,
+          });
+          setMessages(loadChatSession(plan.id).messages);
+          setError(null);
+        }
+      } else {
+        setError(e instanceof Error ? e.message : 'Could not reach coach');
+        setLastFailedMessage(trimmed);
+      }
     } finally {
       setLoading(false);
       inputRef.current?.focus();
@@ -105,15 +148,16 @@ export function PlanAssistantChat() {
     if (!pendingPlan || !plan) return;
     const errors = validatePlan(pendingPlan);
     if (errors.length > 2) {
-      setError(`Plan validation issues: ${errors.join(', ')}`);
+      setError(`Plan validation: ${errors.join(', ')}`);
       return;
     }
     savePlan(pendingPlan);
     updatePlan(pendingPlan);
     setPendingPlan(null);
+    setPendingPatch(null);
     appendChatMessage(plan.id, {
       role: 'assistant',
-      content: 'Plan updated and saved. Check Today and Week views for the new schedule.',
+      content: 'Plan updated. Today and Week views reflect your new schedule.',
     });
     setMessages(loadChatSession(plan.id).messages);
     refresh();
@@ -125,7 +169,9 @@ export function PlanAssistantChat() {
     clearChatSession(plan.id);
     setMessages([]);
     setPendingPlan(null);
+    setPendingPatch(null);
     setError(null);
+    setLastFailedMessage(null);
   }
 
   return (
@@ -151,7 +197,7 @@ export function PlanAssistantChat() {
           <header className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3 pt-safe-top">
             <div>
               <h2 className="text-base font-bold">Plan Assistant</h2>
-              <p className="text-xs text-zinc-500">Adapt schedule · dates · volume</p>
+              <p className="text-xs text-zinc-500">Shift dates · volume · schedule</p>
             </div>
             <button
               type="button"
@@ -167,8 +213,8 @@ export function PlanAssistantChat() {
               <div className="mb-4 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-zinc-400">
                 <p className="text-zinc-200">Tell me what changed.</p>
                 <p className="mt-2">
-                  I can shift your start date, race date, weekly hours, long sessions, and phases —
-                  based on how training is actually going.
+                  Example: &quot;Camping this week — push my start to June 1.&quot; When you
+                  confirm a change, tap <strong className="text-white">Apply to my plan</strong>.
                 </p>
               </div>
             )}
@@ -188,7 +234,7 @@ export function PlanAssistantChat() {
                   >
                     {m.content}
                     {m.hasPlanProposal && m.role === 'assistant' && (
-                      <p className="mt-2 text-xs text-[#8b92ff]">↳ Plan update proposed below</p>
+                      <p className="mt-2 text-xs text-[#8b92ff]">↳ Tap Apply below to save</p>
                     )}
                   </div>
                 </div>
@@ -206,25 +252,49 @@ export function PlanAssistantChat() {
               <div className="mt-4 space-y-2 rounded-xl border border-[#4a53ff]/40 bg-[#4a53ff]/10 p-4">
                 <p className="text-sm font-semibold text-white">Apply plan changes?</p>
                 <ul className="space-y-1 text-xs text-zinc-300">
-                  {pendingPlan.startDate && <li>Start: {pendingPlan.startDate}</li>}
-                  {pendingPlan.raceDate && <li>Race: {pendingPlan.raceDate}</li>}
-                  <li>Weeks: {pendingPlan.weeks.length}</li>
-                  {pendingPlan.totalWeeks != null && (
-                    <li>Total weeks: {pendingPlan.totalWeeks}</li>
+                  {(pendingPatch?.startDate ?? pendingPlan.startDate) && (
+                    <li>Start: {pendingPatch?.startDate ?? pendingPlan.startDate}</li>
                   )}
+                  {(pendingPatch?.raceDate ?? pendingPlan.raceDate) && (
+                    <li>Race: {pendingPatch?.raceDate ?? pendingPlan.raceDate}</li>
+                  )}
+                  {pendingPatch?.shiftPhasesWeeksBy != null && (
+                    <li>Phase shift: {pendingPatch.shiftPhasesWeeksBy} week(s)</li>
+                  )}
+                  {pendingPatch?.adaptationNote && <li>{pendingPatch.adaptationNote}</li>}
                 </ul>
                 <div className="flex gap-2 pt-1">
                   <Button type="button" onClick={applyPlan}>
                     Apply to my plan
                   </Button>
-                  <Button type="button" variant="ghost" onClick={() => setPendingPlan(null)}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setPendingPlan(null);
+                      setPendingPatch(null);
+                    }}
+                  >
                     Dismiss
                   </Button>
                 </div>
               </div>
             )}
 
-            {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+            {error && (
+              <div className="mt-3 space-y-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3">
+                <p className="text-sm text-red-300">{error}</p>
+                {lastFailedMessage && (
+                  <button
+                    type="button"
+                    onClick={() => sendMessage(lastFailedMessage, true)}
+                    className="text-sm font-medium text-[#4a53ff] underline"
+                  >
+                    Retry last message
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="shrink-0 border-t border-white/10 bg-black px-4 py-3 pb-safe-bottom">
@@ -252,7 +322,7 @@ export function PlanAssistantChat() {
                     sendMessage(input);
                   }
                 }}
-                placeholder="e.g. Can't start until June 2…"
+                placeholder="e.g. Push start to June 1 — camping this week"
                 rows={2}
                 className="min-h-[44px] flex-1 resize-none rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-[#4a53ff] focus:outline-none"
               />
