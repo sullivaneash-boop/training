@@ -32,16 +32,27 @@ export function Week() {
   if (weekPlan?.longRide) upcoming.push(`Long ride: ${weekPlan.longRide}`);
   if (weekPlan?.longRun) upcoming.push(`Long run: ${weekPlan.longRun}`);
   if (weekPlan?.longSwim) upcoming.push(`Long swim: ${weekPlan.longSwim}`);
+  const onTrackLabel =
+    stats.completionPct >= 80
+      ? 'On track'
+      : stats.completionPct >= 60
+        ? 'Slightly behind'
+        : 'Needs adjustment';
 
   return (
     <div className="space-y-5">
       <PageHeader
         title={`Week ${weekNum}`}
-        subtitle={weekPlan?.keyFocus ?? 'Training cockpit'}
+        subtitle={weekPlan?.keyFocus ?? 'Am I on track?'}
       />
 
       <Card className="space-y-4">
-        <MetricCard label="Completion" value={`${stats.completionPct}%`} />
+        <div className="flex items-end justify-between gap-3">
+          <MetricCard label="Completion" value={`${stats.completionPct}%`} />
+          <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-foreground">
+            {onTrackLabel}
+          </span>
+        </div>
         <ProgressBar
           pct={stats.completionPct}
           label={`${stats.completedHours} / ${stats.plannedHours} hrs`}

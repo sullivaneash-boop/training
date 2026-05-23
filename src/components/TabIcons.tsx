@@ -1,6 +1,6 @@
 type IconProps = { className?: string };
 
-const base = 'h-[22px] w-[22px]';
+const base = 'h-5 w-5';
 
 export function IconToday({ className = '' }: IconProps) {
   return (

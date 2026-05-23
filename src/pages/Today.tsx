@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Card } from '../components/Card';
 import { ActionLink } from '../components/ActionLink';
-import { MetricCard } from '../components/MetricCard';
 import { usePlanAssistant } from '../context/PlanAssistantContext';
 import { useTrainingData } from '../hooks/useTrainingData';
 import { formatSession, getTodaySession, isDeloadWeek } from '../lib/planParser';
@@ -69,98 +68,129 @@ export function Today() {
     plan.raceName && plan.raceName !== plan.name ? plan.raceName : plan.name;
   const phase = getPhaseLabel(weekPlan?.phase);
   const needsCheckIn = !todayReady;
+  const fallbackWorkout = 'No session listed for today in your plan.';
+
+  function inferWorkoutParts() {
+    const details = session?.details ?? sessionText ?? '';
+    const lower = details.toLowerCase();
+    const sport = (session?.type ?? 'session').replace(/^\w/, (c) => c.toUpperCase());
+    const title = session?.title ?? details.split('+')[0]?.trim() ?? 'Training session';
+    const durationMatch = details.match(
+      /(\d+(?:\s*[-to]{1,3}\s*\d+)?\s*(?:min|mins|minutes|hr|hrs|hour|hours))/i,
+    );
+    const intensityMatch = (session?.intensity ?? details).match(
+      /(easy|steady|tempo|threshold|recovery|endurance|zone\s*\d|z\d|race\s*pace|vo2)/i,
+    );
+    const brickNote = details.match(
+      /(brick[^,.]*|jog off the bike[^,.]*|run off the bike[^,.]*)/i,
+    );
+    const focus = weekPlan?.keyFocus ?? getMicroCopy(weekPlan);
+    const detailTail = lower.includes('+') ? details.split('+').slice(1).join('+').trim() : '';
+    return {
+      sport,
+      title: title || fallbackWorkout,
+      duration: durationMatch?.[1],
+      intensity: intensityMatch?.[1],
+      brickNote: brickNote?.[1] ?? (detailTail && detailTail.length < 70 ? detailTail : undefined),
+      focus,
+    };
+  }
+
+  const workout = inferWorkoutParts();
+  const readinessSummary = needsCheckIn
+    ? 'Ego check due'
+    : `${statusLabel(todayReady!.result)} readiness`;
+  const readinessDetail = needsCheckIn
+    ? 'Check in before you train'
+    : readinessAction(todayReady!.result);
 
   return (
     <div className="space-y-5 pb-2">
       {/* Context header */}
-      <header className="space-y-3">
+      <header className="space-y-3.5">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm text-muted">{dayName}</p>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            <p className="text-sm font-medium text-muted">{dayName}</p>
+            <h1 className="text-[30px] font-semibold tracking-tight text-foreground">
               Week {weekNum}
-              <span className="font-normal text-muted"> / {totalWeeks}</span>
+              <span className="text-2xl font-normal text-muted"> / {totalWeeks}</span>
             </h1>
           </div>
           {daysLeft != null && daysLeft > 0 && (
-            <MetricCard
-              label="Race"
-              value={daysLeft}
-              sub="days out"
-              className="text-right"
-            />
+            <div className="rounded-2xl border border-border bg-surface px-3 py-2 text-right shadow-[0_1px_2px_rgba(17,24,39,0.04)]">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-muted">Race</p>
+              <p className="text-xl font-semibold tabular-nums text-foreground">{daysLeft}</p>
+              <p className="text-xs text-muted">days out</p>
+            </div>
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-lg bg-neutral-100 px-2.5 py-1 text-xs font-medium text-foreground">
-            {phase}
-          </span>
-          {athleteGoal && (
-            <span className="rounded-lg border border-border px-2.5 py-1 text-xs text-muted">
-              {athleteGoal}
-            </span>
-          )}
-          {plan.sportTypes.map((s) => (
-            <span
-              key={s}
-              className="rounded-lg bg-neutral-100 px-2 py-0.5 text-xs capitalize text-muted"
-            >
-              {s}
-            </span>
-          ))}
-        </div>
-
-        <Card className="!py-3">
-          <p className="text-sm font-medium text-foreground">{raceTitle}</p>
+        <Card className="space-y-3 !py-3.5">
+          <p className="text-sm font-semibold text-foreground">{raceTitle}</p>
           <p className="text-sm text-muted">{formatRaceDate(plan.raceDate)}</p>
-          {weekPlan?.keyFocus && (
-            <p className="mt-2 text-sm italic text-muted">{getMicroCopy(weekPlan)}</p>
-          )}
-        </Card>
-
-        {needsCheckIn ? (
-          <Link
-            to="/readiness"
-            className="flex min-h-[48px] items-center justify-between rounded-xl border border-dashed border-accent/40 bg-teal-50/50 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          >
-            <div>
-              <p className="text-sm font-semibold text-accent">Ego check</p>
-              <p className="text-sm text-muted">How are you really feeling?</p>
+          <div className="grid grid-cols-3 gap-2.5">
+            <div className="rounded-xl bg-background px-3 py-2">
+              <p className="text-[11px] uppercase tracking-wide text-muted">Phase</p>
+              <p className="mt-1 text-sm font-semibold text-foreground">{phase}</p>
             </div>
-            <span className="text-sm font-medium text-accent">Start →</span>
-          </Link>
-        ) : (
-          <Link
-            to="/readiness"
-            className={`flex min-h-[48px] items-center justify-between rounded-xl border px-4 py-3 ${statusBg(todayReady!.result)}`}
-          >
-            <div>
-              <p className="text-xs font-medium text-muted">Readiness</p>
-              <p className={`text-lg font-bold ${statusColor(todayReady!.result)}`}>
-                {statusLabel(todayReady!.result)}
+            <div
+              className={`rounded-xl border px-3 py-2 ${
+                needsCheckIn ? 'border-dashed border-accent/35 bg-teal-50/60' : statusBg(todayReady!.result)
+              }`}
+            >
+              <p className="text-[11px] uppercase tracking-wide text-muted">Readiness</p>
+              <p
+                className={`mt-1 text-sm font-semibold ${
+                  needsCheckIn ? 'text-accent' : statusColor(todayReady!.result)
+                }`}
+              >
+                {readinessSummary}
               </p>
-              <p className="text-sm text-muted">{readinessAction(todayReady!.result)}</p>
             </div>
-            <span className="text-sm text-accent">Update →</span>
-          </Link>
-        )}
+            <div className="rounded-xl bg-background px-3 py-2">
+              <p className="text-[11px] uppercase tracking-wide text-muted">Today focus</p>
+              <p className="mt-1 text-sm font-semibold text-foreground">{getMicroCopy(weekPlan)}</p>
+            </div>
+          </div>
+          {athleteGoal && <p className="text-xs text-muted">{athleteGoal}</p>}
+        </Card>
       </header>
 
       {/* Hero workout */}
       <section className="space-y-3">
         <p className="section-label">Today&apos;s workout</p>
-        <Card className="border-accent/20 p-5">
-          {session?.type && (
-            <span className="mb-2 inline-block rounded-md bg-teal-50 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-accent">
-              {session.type}
+        <Card className="space-y-3 border-accent/20 p-[18px]">
+          <div className="flex items-start justify-between gap-3">
+            <span className="inline-flex rounded-full bg-teal-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-accent">
+              {workout.sport}
             </span>
-          )}
-          <p className="text-lg font-medium leading-relaxed text-foreground">
-            {sessionText ?? 'No session listed for today in your plan.'}
-          </p>
+            {workout.duration && (
+              <span className="rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted">
+                {workout.duration}
+              </span>
+            )}
+          </div>
+          <p className="text-xl font-semibold leading-tight text-foreground">{workout.title}</p>
+          <div className="space-y-1.5 text-sm">
+            <p className="text-muted">
+              <span className="font-medium text-foreground">Focus:</span> {workout.focus}
+            </p>
+            <p className="text-muted">
+              <span className="font-medium text-foreground">Readiness:</span> {readinessDetail}
+            </p>
+            {workout.intensity && (
+              <p className="text-muted">
+                <span className="font-medium text-foreground">Intensity:</span> {workout.intensity}
+              </p>
+            )}
+            {workout.brickNote && (
+              <p className="text-muted">
+                <span className="font-medium text-foreground">Brick note:</span> {workout.brickNote}
+              </p>
+            )}
+          </div>
           {isDeloadWeek(weekPlan) && (
-            <p className="mt-2 text-sm font-medium text-amber-700">
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
               Deload week — respect the brick, cut volume ~30%.
             </p>
           )}
@@ -176,15 +206,23 @@ export function Today() {
       </section>
 
       {/* Secondary actions */}
-      <section className="flex flex-col gap-2">
-        <ActionLink to="/readiness" variant="outline" className="!flex-row !justify-between !px-4">
-          <span>Ego check</span>
-          <span className="text-muted">→</span>
-        </ActionLink>
-        <ActionLink to="/coach" variant="outline" className="!flex-row !justify-between !px-4">
-          <span>Ask coach</span>
-          <span className="text-muted">→</span>
-        </ActionLink>
+      <section className="grid grid-cols-2 gap-2.5">
+        <Link
+          to="/readiness"
+          className="rounded-2xl border border-border bg-surface px-4 py-3.5 shadow-[0_1px_2px_rgba(17,24,39,0.04)] transition-colors hover:border-neutral-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <p className="text-sm font-semibold text-foreground">Ego check</p>
+          <p className="mt-0.5 text-xs text-muted">Update readiness</p>
+          <p className="mt-2 text-sm font-medium text-accent">Open →</p>
+        </Link>
+        <Link
+          to="/coach"
+          className="rounded-2xl border border-border bg-surface px-4 py-3.5 shadow-[0_1px_2px_rgba(17,24,39,0.04)] transition-colors hover:border-neutral-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <p className="text-sm font-semibold text-foreground">Ask coach</p>
+          <p className="mt-0.5 text-xs text-muted">Get today guidance</p>
+          <p className="mt-2 text-sm font-medium text-accent">Open →</p>
+        </Link>
       </section>
 
       {/* Week snapshot */}
@@ -196,15 +234,31 @@ export function Today() {
               See week →
             </Link>
           </div>
-          <Card>
-            {weekPlan.keyFocus && (
-              <p className="text-sm leading-snug text-foreground">{weekPlan.keyFocus}</p>
-            )}
+          <Card className="space-y-2.5">
             {weekPlan.targetHours != null && (
-              <p className="mt-2 text-sm text-muted">
-                Target: <span className="font-semibold text-foreground">{weekPlan.targetHours}</span> hrs
+              <p className="text-sm text-muted">
+                Weekly target:{' '}
+                <span className="font-semibold text-foreground">{weekPlan.targetHours} hrs</span>
               </p>
             )}
+            {weekPlan.keyFocus && <p className="text-sm leading-snug text-foreground">{weekPlan.keyFocus}</p>}
+            <div className="flex flex-wrap gap-2">
+              {weekPlan.longRide && (
+                <span className="rounded-full border border-border px-2.5 py-1 text-xs text-muted">
+                  Long ride: {weekPlan.longRide}
+                </span>
+              )}
+              {weekPlan.longRun && (
+                <span className="rounded-full border border-border px-2.5 py-1 text-xs text-muted">
+                  Long run: {weekPlan.longRun}
+                </span>
+              )}
+              {weekPlan.longSwim && (
+                <span className="rounded-full border border-border px-2.5 py-1 text-xs text-muted">
+                  Long swim: {weekPlan.longSwim}
+                </span>
+              )}
+            </div>
           </Card>
         </section>
       )}

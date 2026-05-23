@@ -118,6 +118,22 @@ export function Log() {
 
         <div>
           <Label>Duration (minutes)</Label>
+          <div className="mb-2 flex gap-2">
+            {[30, 45, 60].map((minutes) => (
+              <button
+                key={minutes}
+                type="button"
+                onClick={() => setForm({ ...form, durationMinutes: minutes })}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  form.durationMinutes === minutes
+                    ? 'bg-teal-50 text-accent'
+                    : 'border border-border bg-surface text-muted'
+                }`}
+              >
+                {minutes}m
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-3">
             <button
               type="button"

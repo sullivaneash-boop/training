@@ -8,7 +8,7 @@ export function Layout() {
   return (
     <PlanAssistantProvider>
       <AppShell>
-        <main className="flex-1 overflow-y-auto px-4 pb-24 pt-safe-top pt-4">
+        <main className="flex-1 overflow-y-auto px-4 pb-32 pt-safe-top pt-4">
           <Outlet />
         </main>
         <PlanAssistantChat />
