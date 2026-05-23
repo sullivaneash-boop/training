@@ -6,13 +6,13 @@ import { Button } from './FormField';
 function signalColor(signal: string): string {
   switch (signal) {
     case 'green':
-      return 'text-emerald-400';
+      return 'text-emerald-800';
     case 'yellow':
-      return 'text-amber-400';
+      return 'text-amber-800';
     case 'red':
-      return 'text-red-400';
+      return 'text-rose-800';
     default:
-      return 'text-zinc-300';
+      return 'text-foreground';
   }
 }
 
@@ -36,16 +36,16 @@ export function CoachPanel({
   if (loading) {
     return (
       <Card className="animate-pulse">
-        <p className="text-sm text-zinc-400">DeepSeek thinking…</p>
+        <p className="text-sm text-muted">Coach thinking…</p>
       </Card>
     );
   }
 
   if (error) {
     return (
-      <Card className="border-red-500/30">
-        <p className="text-sm text-red-400">{error}</p>
-        <p className="mt-1 text-xs text-zinc-500">App still works — try again or check API key.</p>
+      <Card className="border-rose-200 bg-rose-50/50">
+        <p className="text-sm text-rose-800">{error}</p>
+        <p className="mt-1 text-sm text-muted">App still works — try again or check API key.</p>
       </Card>
     );
   }
@@ -62,7 +62,7 @@ export function CoachPanel({
     <Card className="space-y-3">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-xs uppercase text-zinc-500">{response.mode}</p>
+          <p className="text-xs font-medium text-muted">{response.mode.replace(/_/g, ' ')}</p>
           <p className={`text-sm font-bold uppercase ${signalColor(response.signal)}`}>
             {response.signal}
           </p>
@@ -71,12 +71,12 @@ export function CoachPanel({
           <button
             type="button"
             onClick={copyResponse}
-            className="text-xs text-[#4a53ff] underline"
+            className="text-sm text-accent underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             {copied ? 'Copied' : 'Copy'}
           </button>
           {onDismiss && (
-            <button type="button" onClick={onDismiss} className="text-xs text-zinc-500">
+            <button type="button" onClick={onDismiss} className="text-sm text-muted">
               Dismiss
             </button>
           )}
@@ -84,14 +84,14 @@ export function CoachPanel({
       </div>
 
       <div>
-        <p className="text-xs text-zinc-500">Summary</p>
-        <p className="text-sm leading-relaxed text-zinc-200">{response.summary}</p>
+        <p className="text-xs font-medium text-muted">Summary</p>
+        <p className="text-sm leading-relaxed text-foreground">{response.summary}</p>
       </div>
 
       {response.keyFindings.length > 0 && (
         <div>
-          <p className="text-xs text-zinc-500">Key findings</p>
-          <ul className="mt-1 space-y-1 text-sm text-zinc-300">
+          <p className="text-xs font-medium text-muted">Key findings</p>
+          <ul className="mt-1 space-y-1 text-sm text-foreground/90">
             {response.keyFindings.map((f) => (
               <li key={f}>· {f}</li>
             ))}
@@ -100,19 +100,19 @@ export function CoachPanel({
       )}
 
       <div>
-        <p className="text-xs text-zinc-500">Recommended action</p>
-        <p className="text-sm font-medium text-[#4a53ff]">{response.recommendedAction}</p>
+        <p className="text-xs font-medium text-muted">Recommended action</p>
+        <p className="text-sm font-medium text-accent">{response.recommendedAction}</p>
       </div>
 
       {response.adjustments.length > 0 && (
         <div>
-          <p className="text-xs text-zinc-500">Adjustments</p>
+          <p className="text-xs font-medium text-muted">Adjustments</p>
           <ul className="mt-1 space-y-2 text-sm">
             {response.adjustments.map((a, i) => (
-              <li key={i} className="rounded-lg bg-black/40 p-2">
-                <span className="text-xs uppercase text-zinc-500">{a.priority}</span>
-                <p className="text-zinc-200">{a.action}</p>
-                <p className="text-xs text-zinc-500">{a.reason}</p>
+              <li key={i} className="rounded-lg bg-neutral-50 p-2">
+                <span className="text-xs font-medium uppercase text-muted">{a.priority}</span>
+                <p className="text-foreground">{a.action}</p>
+                <p className="text-xs text-muted">{a.reason}</p>
               </li>
             ))}
           </ul>
@@ -121,8 +121,8 @@ export function CoachPanel({
 
       {response.warningFlags.length > 0 && (
         <div>
-          <p className="text-xs text-zinc-500">Warnings</p>
-          <ul className="text-sm text-amber-400">
+          <p className="text-xs font-medium text-muted">Warnings</p>
+          <ul className="text-sm text-amber-800">
             {response.warningFlags.map((w) => (
               <li key={w}>· {w}</li>
             ))}
@@ -132,8 +132,8 @@ export function CoachPanel({
 
       {response.questionsForUser.length > 0 && (
         <div>
-          <p className="text-xs text-zinc-500">Questions for you</p>
-          <ul className="text-sm text-zinc-400">
+          <p className="text-xs font-medium text-muted">Questions for you</p>
+          <ul className="text-sm text-muted">
             {response.questionsForUser.map((q) => (
               <li key={q}>· {q}</li>
             ))}
@@ -143,8 +143,8 @@ export function CoachPanel({
 
       {showDebug && rawJson && (
         <details className="text-xs">
-          <summary className="cursor-pointer text-zinc-500">Raw JSON debug</summary>
-          <pre className="mt-2 max-h-40 overflow-auto rounded bg-black p-2 text-zinc-400">
+          <summary className="cursor-pointer text-muted">Raw JSON debug</summary>
+          <pre className="mt-2 max-h-40 overflow-auto rounded-lg bg-neutral-100 p-2 text-neutral-700">
             {rawJson}
           </pre>
         </details>

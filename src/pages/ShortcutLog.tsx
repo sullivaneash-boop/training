@@ -73,21 +73,21 @@ export function ShortcutLog() {
   }, [params]);
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center bg-black px-6 text-center text-white">
-      {status === 'pending' && <p className="text-zinc-400">Saving…</p>}
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-6 text-center">
+      {status === 'pending' && <p className="text-muted">Saving…</p>}
       {status === 'ok' && (
         <>
-          <p className="text-4xl">✓</p>
-          <p className="mt-4 text-lg">{message}</p>
-          <Link to="/" className="mt-8 text-[#4a53ff] underline">
+          <p className="text-4xl text-accent">✓</p>
+          <p className="mt-4 text-lg text-foreground">{message}</p>
+          <Link to="/" className="mt-8 text-sm font-medium text-accent underline">
             Back to Today
           </Link>
         </>
       )}
       {status === 'error' && (
         <>
-          <p className="text-red-400">{message}</p>
-          <Link to="/log" className="mt-8 text-[#4a53ff] underline">
+          <p className="text-rose-700">{message}</p>
+          <Link to="/log" className="mt-8 text-sm font-medium text-accent underline">
             Log manually
           </Link>
         </>

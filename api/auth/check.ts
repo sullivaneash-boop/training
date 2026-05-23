@@ -2,8 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import {
   authStatus,
   isAuthEnabled,
-  requireAuth,
-} from '../lib/auth';
+  isRequestAuthenticated,
+} from '../lib/auth.js';
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
@@ -13,9 +13,17 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   const status = authStatus();
 
   if (!isAuthEnabled()) {
-    return res.status(200).json({ authenticated: true, authRequired: false, ...status });
+    return res.status(200).json({
+      authenticated: true,
+      authRequired: false,
+      ...status,
+    });
   }
 
-  if (!requireAuth(req, res)) return;
-  return res.status(200).json({ authenticated: true, authRequired: true, ...status });
+  const authenticated = isRequestAuthenticated(req);
+  return res.status(200).json({
+    authenticated,
+    authRequired: true,
+    ...status,
+  });
 }

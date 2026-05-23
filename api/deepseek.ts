@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireAuth } from './lib/auth';
-import { parseModelJson } from './parseJson';
+import { requireAuth } from './lib/auth.js';
+import { parseModelJson } from './parseJson.js';
 
 const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
 const DEFAULT_MODEL = 'deepseek-v4-flash';

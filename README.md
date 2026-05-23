@@ -72,7 +72,10 @@ Stops strangers from hitting your DeepSeek API. No extra npm packages — cookie
 1. Project → Settings → Environment Variables
 2. Add `APP_PASSWORD` = your password
 3. Optional: `AUTH_SECRET` = long random string (session signing; defaults to `APP_PASSWORD`)
-4. Redeploy
+4. Redeploy (required after adding env vars)
+5. Confirm login works at `/login` before relying on the PWA home-screen icon
+
+**Tip:** In Vercel, paste the password without quotes. If login succeeds but the app bounces back, open the site in Safari once (cookies + PWA can be picky).
 
 **Local:**
 ```bash

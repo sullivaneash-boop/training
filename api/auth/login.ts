@@ -3,9 +3,10 @@ import {
   authStatus,
   createSessionToken,
   getAppPassword,
+  parseJsonBody,
   sessionCookieHeader,
   verifyPassword,
-} from '../lib/auth';
+} from '../lib/auth.js';
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -14,12 +15,16 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!getAppPassword()) {
     return res.status(503).json({
-      error: 'Auth not configured. Set APP_PASSWORD in Vercel or .app-password locally.',
+      error: 'Auth not configured. Set APP_PASSWORD in Vercel environment variables.',
     });
   }
 
-  const body = (req.body ?? {}) as { password?: string };
+  const body = parseJsonBody<{ password?: string }>(req);
   const password = String(body.password ?? '');
+
+  if (!password) {
+    return res.status(400).json({ error: 'Password required' });
+  }
 
   if (!verifyPassword(password)) {
     return res.status(401).json({ error: 'Invalid password' });

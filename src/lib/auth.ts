@@ -1,35 +1,55 @@
-export type AuthState = {
-  loading: boolean;
-  authenticated: boolean;
-  authRequired: boolean;
-};
-
 export async function checkAuth(): Promise<{ authenticated: boolean; authRequired: boolean }> {
-  const res = await fetch('/api/auth/check', { credentials: 'include' });
-  if (!res.ok) {
+  try {
+    const res = await fetch('/api/auth/check', {
+      credentials: 'include',
+      cache: 'no-store',
+    });
+    const data = (await res.json()) as {
+      authenticated?: boolean;
+      authRequired?: boolean;
+    };
+    if (!res.ok) {
+      return { authenticated: false, authRequired: true };
+    }
+    return {
+      authenticated: Boolean(data.authenticated),
+      authRequired: Boolean(data.authRequired),
+    };
+  } catch {
     return { authenticated: false, authRequired: true };
   }
-  const data = (await res.json()) as { authenticated?: boolean; authRequired?: boolean };
-  return {
-    authenticated: Boolean(data.authenticated),
-    authRequired: Boolean(data.authRequired),
-  };
 }
 
 export async function login(password: string): Promise<{ ok: boolean; error?: string }> {
-  const res = await fetch('/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ password }),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    return { ok: false, error: (data as { error?: string }).error ?? 'Login failed' };
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      cache: 'no-store',
+      body: JSON.stringify({ password }),
+    });
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    if (!res.ok) {
+      return { ok: false, error: data.error ?? `Login failed (${res.status})` };
+    }
+    const check = await checkAuth();
+    if (!check.authenticated) {
+      return {
+        ok: false,
+        error: 'Login succeeded but session cookie was not saved. Try Safari (not private) or disable content blockers.',
+      };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'Could not reach login server' };
   }
-  return { ok: true };
 }
 
 export async function logout(): Promise<void> {
-  await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+  await fetch('/api/auth/logout', {
+    method: 'POST',
+    credentials: 'include',
+    cache: 'no-store',
+  });
 }

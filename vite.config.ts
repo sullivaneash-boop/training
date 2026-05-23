@@ -14,8 +14,8 @@ export default defineConfig({
         name: 'Training Command Center',
         short_name: 'Training',
         description: 'Personal training plan dashboard',
-        theme_color: '#000000',
-        background_color: '#000000',
+        theme_color: '#f4f3f0',
+        background_color: '#f4f3f0',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',
@@ -41,6 +41,13 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,md,woff2}'],
         navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api\//],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
+            handler: 'NetworkOnly',
+          },
+        ],
       },
     }),
   ],

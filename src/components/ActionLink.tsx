@@ -4,10 +4,10 @@ import { Link } from 'react-router-dom';
 type Variant = 'primary' | 'secondary' | 'outline' | 'accent';
 
 const styles: Record<Variant, string> = {
-  primary: 'bg-[#4a53ff] text-white active:bg-[#3d46e0]',
-  secondary: 'bg-white/10 text-white active:bg-white/15',
-  outline: 'border border-white/25 bg-transparent text-white active:bg-white/5',
-  accent: 'bg-white text-black active:bg-zinc-200',
+  primary: 'bg-accent text-white active:bg-accent-hover',
+  secondary: 'bg-neutral-100 text-foreground active:bg-neutral-200',
+  outline: 'border border-border bg-surface text-foreground active:bg-neutral-50',
+  accent: 'border border-accent/30 bg-teal-50 text-accent active:bg-teal-100',
 };
 
 export function ActionLink({
@@ -26,10 +26,10 @@ export function ActionLink({
   return (
     <Link
       to={to}
-      className={`flex min-h-[52px] flex-col items-center justify-center rounded-2xl px-4 py-3.5 text-center transition-colors ${styles[variant]} ${className}`}
+      className={`flex min-h-[48px] flex-col items-center justify-center rounded-xl px-4 py-3 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 active:scale-[0.98] ${styles[variant]} ${className}`}
     >
-      <span className="text-sm font-semibold leading-tight">{children}</span>
-      {sub && <span className="mt-0.5 text-[11px] font-normal opacity-80">{sub}</span>}
+      <span className="text-base font-semibold leading-tight">{children}</span>
+      {sub && <span className="mt-0.5 text-sm font-normal opacity-80">{sub}</span>}
     </Link>
   );
 }

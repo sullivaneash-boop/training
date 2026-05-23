@@ -179,7 +179,7 @@ export function PlanAssistantChat() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-[60] flex h-14 w-14 items-center justify-center rounded-full bg-[#4a53ff] text-white shadow-lg shadow-[#4a53ff]/40 transition-transform active:scale-95"
+        className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-[60] flex h-12 w-12 items-center justify-center rounded-full border-2 border-accent bg-surface text-accent shadow-md transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         aria-label="Open plan assistant"
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -193,16 +193,16 @@ export function PlanAssistantChat() {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[70] flex flex-col bg-black">
-          <header className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3 pt-safe-top">
+        <div className="fixed inset-0 z-[70] flex flex-col bg-background">
+          <header className="flex shrink-0 items-center justify-between border-b border-border bg-surface px-4 py-3 pt-safe-top">
             <div>
-              <h2 className="text-base font-bold">Plan Assistant</h2>
-              <p className="text-xs text-zinc-500">Shift dates · volume · schedule</p>
+              <h2 className="text-base font-semibold text-foreground">Plan Assistant</h2>
+              <p className="text-xs text-muted">Shift dates · volume · schedule</p>
             </div>
             <button
               type="button"
               onClick={close}
-              className="rounded-lg px-3 py-1.5 text-sm text-zinc-400 hover:bg-white/10"
+              className="rounded-lg px-3 py-1.5 text-sm text-muted hover:bg-neutral-100"
             >
               Close
             </button>
@@ -210,11 +210,11 @@ export function PlanAssistantChat() {
 
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
             {messages.length === 0 && (
-              <div className="mb-4 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-zinc-400">
-                <p className="text-zinc-200">Tell me what changed.</p>
+              <div className="mb-4 rounded-xl border border-border bg-surface p-4 text-sm text-muted">
+                <p className="text-foreground">Tell me what changed.</p>
                 <p className="mt-2">
                   Example: &quot;Camping this week — push my start to June 1.&quot; When you
-                  confirm a change, tap <strong className="text-white">Apply to my plan</strong>.
+                  confirm a change, tap <strong className="text-foreground">Apply to my plan</strong>.
                 </p>
               </div>
             )}
@@ -228,20 +228,20 @@ export function PlanAssistantChat() {
                   <div
                     className={`max-w-[88%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                       m.role === 'user'
-                        ? 'bg-[#4a53ff] text-white'
-                        : 'border border-white/10 bg-white/5 text-zinc-200'
+                        ? 'bg-accent text-white'
+                        : 'border border-border bg-surface text-foreground'
                     }`}
                   >
                     {m.content}
                     {m.hasPlanProposal && m.role === 'assistant' && (
-                      <p className="mt-2 text-xs text-[#8b92ff]">↳ Tap Apply below to save</p>
+                      <p className="mt-2 text-xs text-accent">↳ Tap Apply below to save</p>
                     )}
                   </div>
                 </div>
               ))}
               {loading && (
                 <div className="flex justify-start">
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-500">
+                  <div className="rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-muted">
                     Thinking…
                   </div>
                 </div>
@@ -249,9 +249,9 @@ export function PlanAssistantChat() {
             </div>
 
             {pendingPlan && (
-              <div className="mt-4 space-y-2 rounded-xl border border-[#4a53ff]/40 bg-[#4a53ff]/10 p-4">
-                <p className="text-sm font-semibold text-white">Apply plan changes?</p>
-                <ul className="space-y-1 text-xs text-zinc-300">
+              <div className="mt-4 space-y-2 rounded-xl border border-accent/30 bg-teal-50 p-4">
+                <p className="text-sm font-semibold text-foreground">Apply plan changes?</p>
+                <ul className="space-y-1 text-xs text-muted">
                   {(pendingPatch?.startDate ?? pendingPlan.startDate) && (
                     <li>Start: {pendingPatch?.startDate ?? pendingPlan.startDate}</li>
                   )}
@@ -282,13 +282,13 @@ export function PlanAssistantChat() {
             )}
 
             {error && (
-              <div className="mt-3 space-y-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3">
-                <p className="text-sm text-red-300">{error}</p>
+              <div className="mt-3 space-y-2 rounded-xl border border-rose-200 bg-rose-50 p-3">
+                <p className="text-sm text-rose-800">{error}</p>
                 {lastFailedMessage && (
                   <button
                     type="button"
                     onClick={() => sendMessage(lastFailedMessage, true)}
-                    className="text-sm font-medium text-[#4a53ff] underline"
+                    className="text-sm font-medium text-accent underline"
                   >
                     Retry last message
                   </button>
@@ -297,7 +297,7 @@ export function PlanAssistantChat() {
             )}
           </div>
 
-          <div className="shrink-0 border-t border-white/10 bg-black px-4 py-3 pb-safe-bottom">
+          <div className="shrink-0 border-t border-border bg-surface px-4 py-3 pb-safe-bottom">
             <div className="mb-2 flex gap-2 overflow-x-auto pb-1">
               {QUICK_PROMPTS.map((p) => (
                 <button
@@ -305,7 +305,7 @@ export function PlanAssistantChat() {
                   type="button"
                   disabled={loading}
                   onClick={() => sendMessage(p)}
-                  className="shrink-0 rounded-full border border-white/15 px-3 py-1.5 text-[11px] text-zinc-400 hover:border-[#4a53ff]/50 hover:text-white disabled:opacity-40"
+                  className="shrink-0 rounded-full border border-border px-3 py-1.5 text-xs text-muted hover:border-accent hover:text-accent disabled:opacity-40"
                 >
                   {p}
                 </button>
@@ -324,13 +324,13 @@ export function PlanAssistantChat() {
                 }}
                 placeholder="e.g. Push start to June 1 — camping this week"
                 rows={2}
-                className="min-h-[44px] flex-1 resize-none rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-[#4a53ff] focus:outline-none"
+                className="min-h-[44px] flex-1 resize-none rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-neutral-400 focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
               />
               <button
                 type="button"
                 disabled={loading || !input.trim()}
                 onClick={() => sendMessage(input)}
-                className="shrink-0 self-end rounded-xl bg-[#4a53ff] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+                className="shrink-0 self-end rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
               >
                 Send
               </button>
@@ -338,7 +338,7 @@ export function PlanAssistantChat() {
             <button
               type="button"
               onClick={handleClearChat}
-              className="mt-2 text-[11px] text-zinc-600 underline"
+              className="mt-2 text-xs text-muted underline"
             >
               Clear chat
             </button>

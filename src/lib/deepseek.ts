@@ -96,6 +96,7 @@ export async function callDeepSeek(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
+    cache: 'no-store',
     body: JSON.stringify({ ...prepared, model }),
   });
 

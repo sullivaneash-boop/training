@@ -71,25 +71,36 @@ export function evaluateReadiness(input: ReadinessInput): ReadinessEval {
   return { result, deterministicReason: reasons.join(' ') };
 }
 
+export function statusLabel(status: ReadinessResult): string {
+  switch (status) {
+    case 'green':
+      return 'Train';
+    case 'yellow':
+      return 'Reduce';
+    case 'red':
+      return 'Back off';
+  }
+}
+
 export function statusColor(status: ReadinessResult): string {
   switch (status) {
     case 'green':
-      return 'text-emerald-400';
+      return 'text-emerald-800';
     case 'yellow':
-      return 'text-amber-400';
+      return 'text-amber-800';
     case 'red':
-      return 'text-red-400';
+      return 'text-rose-800';
   }
 }
 
 export function statusBg(status: ReadinessResult): string {
   switch (status) {
     case 'green':
-      return 'bg-emerald-500/15 border-emerald-500/30';
+      return 'bg-emerald-50 border-emerald-200';
     case 'yellow':
-      return 'bg-amber-500/15 border-amber-500/30';
+      return 'bg-amber-50 border-amber-200';
     case 'red':
-      return 'bg-red-500/15 border-red-500/30';
+      return 'bg-rose-50 border-rose-200';
   }
 }
 

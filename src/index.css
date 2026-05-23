@@ -2,7 +2,13 @@
 
 @theme {
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --color-accent: #4a53ff;
+  --color-surface: #ffffff;
+  --color-background: #f4f3f0;
+  --color-foreground: #171717;
+  --color-muted: #737373;
+  --color-border: #e5e5e5;
+  --color-accent: #0d9488;
+  --color-accent-hover: #0f766e;
 }
 
 html {
@@ -11,8 +17,8 @@ html {
 
 body {
   margin: 0;
-  background: #000;
-  color: #fff;
+  background: var(--color-background);
+  color: var(--color-foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
@@ -25,6 +31,12 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+.section-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-muted);
+}
+
 input[type='range'] {
-  accent-color: #4a53ff;
+  accent-color: var(--color-accent);
 }

@@ -20,7 +20,7 @@ export function AuthGate() {
 
   if (state === 'loading') {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-black text-zinc-500">
+      <div className="flex min-h-dvh items-center justify-center bg-background text-muted">
         Checking access…
       </div>
     );

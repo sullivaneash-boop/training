@@ -1,132 +1,109 @@
-import { useState } from 'react';
-import { Card, StatCard } from '../components/Card';
+import { Link } from 'react-router-dom';
+import { Card } from '../components/Card';
+import { MetricCard } from '../components/MetricCard';
+import { PageHeader } from '../components/PageHeader';
 import { ProgressBar } from '../components/ProgressBar';
-import { CoachPanel, AskDeepSeekButton } from '../components/CoachPanel';
 import { useTrainingData } from '../hooks/useTrainingData';
-import { useDeepSeek } from '../hooks/useDeepSeek';
-import { computeWeeklyStats, getMissedSessionTypes } from '../lib/weeklyStats';
+import { computeWeeklyStats } from '../lib/weeklyStats';
 import { getWeekNumber, getWeekPlan } from '../lib/weekUtils';
 import { isAiEnabled } from '../lib/storage';
 
-export function Week() {
-  const { plan, workouts, settings } = useTrainingData();
-  const coach = useDeepSeek();
-  const [selectedMissed, setSelectedMissed] = useState<string[]>([]);
+const DISCIPLINES = [
+  { key: 'swim', label: 'Swim', get: (s: ReturnType<typeof computeWeeklyStats>) => s.swimSessions },
+  { key: 'bike', label: 'Bike', get: (s: ReturnType<typeof computeWeeklyStats>) => s.bikeSessions },
+  { key: 'run', label: 'Run', get: (s: ReturnType<typeof computeWeeklyStats>) => s.runSessions },
+  {
+    key: 'strength',
+    label: 'Strength',
+    get: (s: ReturnType<typeof computeWeeklyStats>) => s.strengthSessions,
+  },
+] as const;
 
-  if (!plan) return <p className="text-zinc-400">Import a plan in Settings.</p>;
+export function Week() {
+  const { plan, workouts } = useTrainingData();
+
+  if (!plan) return <p className="text-muted">Import a plan in Settings.</p>;
 
   const weekNum = getWeekNumber(plan);
   const weekPlan = getWeekPlan(plan, weekNum);
   const stats = computeWeeklyStats(plan, weekPlan, weekNum, workouts);
-  const missedTypes = getMissedSessionTypes(stats);
 
-  function toggleMissed(type: string) {
-    setSelectedMissed((prev) =>
-      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type],
-    );
-  }
+  const upcoming: string[] = [];
+  if (weekPlan?.longRide) upcoming.push(`Long ride: ${weekPlan.longRide}`);
+  if (weekPlan?.longRun) upcoming.push(`Long run: ${weekPlan.longRun}`);
+  if (weekPlan?.longSwim) upcoming.push(`Long swim: ${weekPlan.longSwim}`);
 
   return (
     <div className="space-y-5">
-      <header>
-        <h1 className="text-2xl font-bold">Week {weekNum}</h1>
-        <p className="text-sm text-zinc-400">{weekPlan?.keyFocus ?? 'No week data'}</p>
-      </header>
+      <PageHeader
+        title={`Week ${weekNum}`}
+        subtitle={weekPlan?.keyFocus ?? 'Training cockpit'}
+      />
 
-      <Card>
+      <Card className="space-y-4">
+        <MetricCard label="Completion" value={`${stats.completionPct}%`} />
         <ProgressBar
           pct={stats.completionPct}
           label={`${stats.completedHours} / ${stats.plannedHours} hrs`}
         />
       </Card>
 
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Planned hrs" value={stats.plannedHours} />
-        <StatCard label="Completed hrs" value={stats.completedHours} />
-        <StatCard label="Swim" value={stats.swimSessions} sub="sessions" />
-        <StatCard label="Bike" value={stats.bikeSessions} sub="sessions" />
-        <StatCard label="Run" value={stats.runSessions} sub="sessions" />
-        <StatCard label="Strength" value={stats.strengthSessions} sub="sessions" />
-        <StatCard
-          label="Longest ride"
-          value={stats.longestRideMinutes ? `${stats.longestRideMinutes}m` : '—'}
-        />
-        <StatCard
-          label="Longest run"
-          value={stats.longestRunMinutes ? `${stats.longestRunMinutes}m` : '—'}
-        />
-      </div>
+      <section className="space-y-2">
+        <p className="section-label">By discipline</p>
+        <div className="grid grid-cols-4 gap-2">
+          {DISCIPLINES.map(({ key, label, get }) => (
+            <div
+              key={key}
+              className="flex flex-col items-center rounded-xl border border-border bg-surface px-2 py-3 text-center shadow-sm"
+            >
+              <span className="text-xs font-medium text-muted">{label}</span>
+              <span className="mt-1 text-xl font-semibold tabular-nums text-foreground">
+                {get(stats)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {upcoming.length > 0 && (
+        <section className="space-y-2">
+          <p className="section-label">Key sessions</p>
+          <Card>
+            <ul className="space-y-2 text-sm text-foreground">
+              {upcoming.map((u) => (
+                <li key={u}>{u}</li>
+              ))}
+            </ul>
+          </Card>
+        </section>
+      )}
 
       <Card>
-        <p className="text-xs uppercase text-zinc-500">Brick completed</p>
-        <p className="mt-1 text-lg font-semibold">{stats.brickCompleted ? 'Yes' : 'Not yet'}</p>
+        <p className="text-xs font-medium text-muted">Brick completed</p>
+        <p className="mt-1 text-lg font-semibold text-foreground">
+          {stats.brickCompleted ? 'Yes' : 'Not yet'}
+        </p>
       </Card>
 
       {stats.missedSessions.length > 0 && (
-        <Card className="border-amber-500/20">
-          <p className="text-xs uppercase text-zinc-500">Signals (not guilt)</p>
-          <ul className="mt-2 space-y-1 text-sm text-zinc-300">
+        <Card className="border-amber-200 bg-amber-50/50">
+          <p className="text-xs font-medium text-amber-800">Missed this week</p>
+          <ul className="mt-2 space-y-1 text-sm text-amber-900/80">
             {stats.missedSessions.map((m) => (
               <li key={m}>· {m}</li>
             ))}
           </ul>
+          <p className="mt-2 text-sm text-muted">No guilt — just adjust and move on.</p>
         </Card>
       )}
 
-      {isAiEnabled() && (
-        <div className="space-y-3">
-          {missedTypes.length > 0 && (
-            <div>
-              <p className="mb-2 text-xs uppercase text-zinc-500">Select missed to fix</p>
-              <div className="flex flex-wrap gap-2">
-                {missedTypes.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => toggleMissed(t)}
-                    className={`rounded-full px-3 py-1 text-xs ${
-                      selectedMissed.includes(t)
-                        ? 'bg-[#4a53ff] text-white'
-                        : 'border border-white/20 text-zinc-400'
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          <AskDeepSeekButton
-            label="Weekly Review"
-            loading={coach.loading}
-            onClick={() => coach.ask('weekly_review', {}, { requestSummary: `week ${weekNum} review` })}
-          />
-          <AskDeepSeekButton
-            label="Fix missed workouts"
-            loading={coach.loading}
-            disabled={selectedMissed.length === 0 && missedTypes.length > 0}
-            onClick={() =>
-              coach.ask(
-                'missed_workout_fix',
-                { missedSessionTypes: selectedMissed.length ? selectedMissed : missedTypes },
-                { requestSummary: `missed: ${selectedMissed.join(', ') || missedTypes.join(', ')}` },
-              )
-            }
-          />
-          <AskDeepSeekButton
-            label="Race Weakness Scan"
-            loading={coach.loading}
-            onClick={() => coach.ask('race_weakness_scan', {}, { requestSummary: 'weakness scan' })}
-          />
-          <CoachPanel
-            response={coach.response}
-            loading={coach.loading}
-            error={coach.error}
-            rawJson={coach.rawJson}
-            showDebug={settings.showJsonDebug}
-            onDismiss={coach.clear}
-          />
-        </div>
+      {isAiEnabled() && stats.missedSessions.length > 0 && (
+        <Link
+          to="/coach"
+          className="block rounded-xl border border-border bg-surface px-4 py-3 text-center text-sm font-semibold text-accent shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          Fix missed workouts in Coach →
+        </Link>
       )}
     </div>
   );

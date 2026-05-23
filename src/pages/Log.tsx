@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Button, Input, Label, Select, Textarea } from '../components/FormField';
+import { Input, Label, RangeField, Select, Textarea } from '../components/FormField';
 import { Card } from '../components/Card';
+import { PageHeader } from '../components/PageHeader';
+import { PrimaryButton } from '../components/PrimaryButton';
 import { CoachPanel, AskDeepSeekButton } from '../components/CoachPanel';
 import { useTrainingData } from '../hooks/useTrainingData';
 import { useDeepSeek } from '../hooks/useDeepSeek';
@@ -72,14 +74,38 @@ export function Log() {
     setTimeout(() => setSaved(false), 2000);
   }
 
+  function adjustDuration(delta: number) {
+    setForm((f) => ({
+      ...f,
+      durationMinutes: Math.max(0, f.durationMinutes + delta),
+    }));
+  }
+
   return (
     <div className="space-y-5">
-      <header>
-        <h1 className="text-2xl font-bold">Debrief</h1>
-        <p className="text-sm text-zinc-400">Log it while it&apos;s fresh.</p>
-      </header>
+      <PageHeader title="Log" subtitle="Log it and move on." />
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div>
+          <Label>Workout type</Label>
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+            {TYPES.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setForm({ ...form, type: t })}
+                className={`shrink-0 rounded-full px-4 py-2.5 text-sm font-medium capitalize transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                  form.type === t
+                    ? 'bg-accent text-white'
+                    : 'border border-border bg-surface text-foreground'
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div>
           <Label>Date</Label>
           <Input
@@ -89,106 +115,117 @@ export function Log() {
             required
           />
         </div>
-        <div>
-          <Label>Workout type</Label>
-          <Select
-            value={form.type}
-            onChange={(e) => setForm({ ...form, type: e.target.value as WorkoutType })}
-          >
-            {TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </Select>
-        </div>
+
         <div>
           <Label>Duration (minutes)</Label>
-          <Input
-            type="number"
-            min={0}
-            value={form.durationMinutes}
-            onChange={(e) => setForm({ ...form, durationMinutes: +e.target.value })}
-            required
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Distance</Label>
-            <Input
-              type="number"
-              step="0.1"
-              placeholder="optional"
-              value={form.distance}
-              onChange={(e) => setForm({ ...form, distance: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Unit</Label>
-            <Select
-              value={form.distanceUnit}
-              onChange={(e) =>
-                setForm({ ...form, distanceUnit: e.target.value as DistanceUnit })
-              }
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => adjustDuration(-5)}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border bg-surface text-lg font-semibold text-foreground active:bg-neutral-100"
+              aria-label="Decrease 5 minutes"
             >
-              <option value="mi">mi</option>
-              <option value="km">km</option>
-              <option value="yd">yd</option>
-              <option value="m">m</option>
-            </Select>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>RPE 1–10</Label>
+              −
+            </button>
             <Input
               type="number"
-              min={1}
-              max={10}
-              value={form.rpe}
-              onChange={(e) => setForm({ ...form, rpe: +e.target.value })}
+              min={0}
+              value={form.durationMinutes}
+              onChange={(e) => setForm({ ...form, durationMinutes: +e.target.value })}
+              className="!text-center !text-2xl !font-semibold"
+              required
             />
-          </div>
-          <div>
-            <Label>Soreness 1–10</Label>
-            <Input
-              type="number"
-              min={1}
-              max={10}
-              value={form.soreness}
-              onChange={(e) => setForm({ ...form, soreness: +e.target.value })}
-            />
+            <button
+              type="button"
+              onClick={() => adjustDuration(5)}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border bg-surface text-lg font-semibold text-foreground active:bg-neutral-100"
+              aria-label="Increase 5 minutes"
+            >
+              +
+            </button>
           </div>
         </div>
-        <div>
-          <Label>Sleep hours</Label>
-          <Input
-            type="number"
-            step={0.5}
-            min={0}
-            max={14}
-            value={form.sleepHours}
-            onChange={(e) => setForm({ ...form, sleepHours: +e.target.value })}
-          />
-        </div>
-        <div>
-          <Label>Notes</Label>
-          <Textarea
-            value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            placeholder="How it felt, weather, fueling…"
-          />
-        </div>
-        <label className="flex items-center gap-2 text-sm">
+
+        <RangeField
+          label="RPE 1–10"
+          min={1}
+          max={10}
+          value={form.rpe}
+          onChange={(rpe) => setForm({ ...form, rpe })}
+        />
+
+        <RangeField
+          label="Soreness 1–10"
+          min={1}
+          max={10}
+          value={form.soreness}
+          onChange={(soreness) => setForm({ ...form, soreness })}
+        />
+
+        <RangeField
+          label="Sleep (hours)"
+          min={0}
+          max={14}
+          step={0.5}
+          value={form.sleepHours}
+          onChange={(sleepHours) => setForm({ ...form, sleepHours })}
+        />
+
+        <details className="rounded-xl border border-border bg-surface">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-foreground">
+            More details
+          </summary>
+          <div className="space-y-4 border-t border-border px-4 py-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Distance</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  placeholder="optional"
+                  value={form.distance}
+                  onChange={(e) => setForm({ ...form, distance: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Unit</Label>
+                <Select
+                  value={form.distanceUnit}
+                  onChange={(e) =>
+                    setForm({ ...form, distanceUnit: e.target.value as DistanceUnit })
+                  }
+                >
+                  <option value="mi">mi</option>
+                  <option value="km">km</option>
+                  <option value="yd">yd</option>
+                  <option value="m">m</option>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Notes</Label>
+              <Textarea
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="How it felt, weather, fueling…"
+              />
+            </div>
+          </div>
+        </details>
+
+        <label className="flex min-h-[44px] items-center gap-3 text-base">
           <input
             type="checkbox"
             checked={form.completed}
             onChange={(e) => setForm({ ...form, completed: e.target.checked })}
-            className="h-4 w-4 rounded"
+            className="h-5 w-5 rounded border-border accent-accent"
           />
-          Completed
+          Completed as planned
         </label>
-        <Button type="submit">{saved ? 'Saved ✓' : 'Save workout'}</Button>
+
+        <PrimaryButton type="submit">
+          {saved ? 'Saved ✓' : 'Save workout'}
+        </PrimaryButton>
       </form>
 
       {isAiEnabled() && lastWorkoutId && (
@@ -216,7 +253,7 @@ export function Log() {
       )}
 
       <Card>
-        <p className="text-xs text-zinc-500">
+        <p className="text-sm text-muted">
           Shortcuts: /shortcut-log?type=run&duration=45&rpe=6 — see Settings.
         </p>
       </Card>

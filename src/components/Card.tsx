@@ -9,7 +9,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded-2xl border border-white/10 bg-white/5 p-4 ${className}`}
+      className={`rounded-xl border border-border bg-surface p-4 shadow-sm ${className}`}
     >
       {children}
     </div>
@@ -27,9 +27,9 @@ export function StatCard({
 }) {
   return (
     <Card className="flex flex-col gap-1">
-      <span className="text-xs uppercase tracking-wider text-zinc-500">{label}</span>
-      <span className="text-2xl font-semibold tabular-nums text-white">{value}</span>
-      {sub && <span className="text-xs text-zinc-400">{sub}</span>}
+      <span className="text-xs font-medium text-muted">{label}</span>
+      <span className="text-2xl font-semibold tabular-nums text-foreground">{value}</span>
+      {sub && <span className="text-xs text-muted">{sub}</span>}
     </Card>
   );
 }

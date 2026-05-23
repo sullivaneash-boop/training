@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { Button, Input, Label } from '../components/FormField';
 import { Card } from '../components/Card';
+import { PageHeader } from '../components/PageHeader';
+import { PrimaryButton } from '../components/PrimaryButton';
+import { StatusCard } from '../components/StatusCard';
 import { CoachPanel, AskDeepSeekButton } from '../components/CoachPanel';
+import { Input, Label, RangeField } from '../components/FormField';
 import { useTrainingData } from '../hooks/useTrainingData';
 import { useDeepSeek } from '../hooks/useDeepSeek';
 import { addReadiness, updateReadinessAiReason } from '../lib/storage';
-import { evaluateReadiness, getTodayReadiness, statusBg, statusColor } from '../lib/readiness';
+import { evaluateReadiness, getTodayReadiness } from '../lib/readiness';
 import { isAiEnabled } from '../lib/storage';
 
 export function Readiness() {
@@ -69,110 +72,91 @@ export function Readiness() {
 
   return (
     <div className="space-y-5">
-      <header>
-        <h1 className="text-2xl font-bold">Don&apos;t Be Stupid Today</h1>
-        <p className="text-sm text-zinc-400">Morning check-in. Honest inputs only.</p>
-      </header>
+      <PageHeader
+        title="Readiness"
+        subtitle="This is an ego check, not a diagnosis."
+      />
+
+      {result && (
+        <StatusCard result={result} reason={reason} />
+      )}
 
       <div className="space-y-4">
+        <RangeField
+          label="Sleep (hours)"
+          min={0}
+          max={14}
+          step={0.5}
+          value={form.sleepHours}
+          onChange={(sleepHours) => setForm({ ...form, sleepHours })}
+        />
+        <RangeField
+          label="Soreness 1–10"
+          min={1}
+          max={10}
+          value={form.soreness}
+          onChange={(soreness) => setForm({ ...form, soreness })}
+        />
+        <RangeField
+          label="Motivation 1–10"
+          min={1}
+          max={10}
+          value={form.motivation}
+          onChange={(motivation) => setForm({ ...form, motivation })}
+        />
+        <RangeField
+          label="Stress 1–10"
+          min={1}
+          max={10}
+          value={form.stress}
+          onChange={(stress) => setForm({ ...form, stress })}
+        />
         <div>
-          <Label>Sleep (hours)</Label>
+          <Label>Resting HR (+bpm above baseline)</Label>
           <Input
             type="number"
-            step={0.5}
             min={0}
-            max={14}
-            value={form.sleepHours}
-            onChange={(e) => setForm({ ...form, sleepHours: +e.target.value })}
+            placeholder="optional"
+            value={form.restingHr}
+            onChange={(e) => setForm({ ...form, restingHr: e.target.value })}
           />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Soreness 1–10</Label>
-            <Input
-              type="number"
-              min={1}
-              max={10}
-              value={form.soreness}
-              onChange={(e) => setForm({ ...form, soreness: +e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Motivation 1–10</Label>
-            <Input
-              type="number"
-              min={1}
-              max={10}
-              value={form.motivation}
-              onChange={(e) => setForm({ ...form, motivation: +e.target.value })}
-            />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Stress 1–10</Label>
-            <Input
-              type="number"
-              min={1}
-              max={10}
-              value={form.stress}
-              onChange={(e) => setForm({ ...form, stress: +e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Resting HR (+bpm)</Label>
-            <Input
-              type="number"
-              min={0}
-              placeholder="optional"
-              value={form.restingHr}
-              onChange={(e) => setForm({ ...form, restingHr: e.target.value })}
-            />
-          </div>
-        </div>
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex min-h-[44px] items-center gap-3 text-base">
           <input
             type="checkbox"
             checked={form.shoulderPain}
             onChange={(e) => setForm({ ...form, shoulderPain: e.target.checked })}
+            className="h-5 w-5 rounded accent-accent"
           />
           Shoulder pain
         </label>
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex min-h-[44px] items-center gap-3 text-base">
           <input
             type="checkbox"
             checked={form.kneePain}
             onChange={(e) => setForm({ ...form, kneePain: e.target.checked })}
+            className="h-5 w-5 rounded accent-accent"
           />
           Knee / run pain
         </label>
-        <Button type="button" onClick={handleCheck}>
+        <PrimaryButton type="button" onClick={handleCheck}>
           Get readiness
-        </Button>
+        </PrimaryButton>
       </div>
 
-      {result && (
-        <Card className={statusBg(result)}>
-          <p className={`text-2xl font-bold uppercase ${statusColor(result)}`}>{result}</p>
-          <p className="mt-2 text-sm leading-relaxed text-zinc-200">
-            {result === 'green' && 'Train as planned.'}
-            {result === 'yellow' && 'Reduce volume or intensity.'}
-            {result === 'red' && 'Recovery / mobility only.'}
-          </p>
-          <p className="mt-3 text-sm text-zinc-400">Why: {reason}</p>
-          {existing?.aiReason && (
-            <p className="mt-2 text-sm text-zinc-300">Coach: {existing.aiReason}</p>
-          )}
-          {isAiEnabled() && (
-            <div className="mt-3">
-              <AskDeepSeekButton
-                label="DeepSeek explain & adjust"
-                loading={coach.loading}
-                onClick={explainWithAi}
-              />
-            </div>
-          )}
+      {result && existing?.aiReason && (
+        <Card>
+          <p className="text-xs font-medium text-muted">Coach note</p>
+          <p className="mt-1 text-sm text-foreground">{existing.aiReason}</p>
         </Card>
+      )}
+
+      {result && isAiEnabled() && (
+        <AskDeepSeekButton
+          label="Explain with coach"
+          loading={coach.loading}
+          onClick={explainWithAi}
+        />
       )}
 
       <CoachPanel

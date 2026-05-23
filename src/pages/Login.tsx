@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { PrimaryButton } from '../components/PrimaryButton';
 import { login } from '../lib/auth';
 
 export function Login() {
@@ -22,14 +23,17 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center bg-black px-6 text-white">
-      <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-bold tracking-tight">Training</h1>
-        <p className="mt-2 text-sm text-zinc-400">Sign in to use your plan and coach.</p>
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-6">
+      <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 shadow-sm">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Training</h1>
+        <p className="mt-2 text-sm text-muted">Sign in to use your plan and coach.</p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
           <div>
-            <label htmlFor="password" className="mb-1 block text-xs uppercase tracking-wider text-zinc-500">
+            <label
+              htmlFor="password"
+              className="mb-1.5 block text-sm font-medium text-muted"
+            >
               Password
             </label>
             <input
@@ -38,22 +42,18 @@ export function Login() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder:text-zinc-600 focus:border-[#4a53ff] focus:outline-none"
+              className="w-full min-h-[48px] rounded-xl border border-border bg-surface px-4 py-3 text-base text-foreground placeholder:text-neutral-400 focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
               placeholder="Your app password"
               required
             />
           </div>
-          {error && <p className="text-sm text-red-400">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading || !password}
-            className="w-full rounded-2xl bg-[#4a53ff] py-3 text-sm font-semibold text-white disabled:opacity-40"
-          >
+          {error && <p className="text-sm text-rose-600">{error}</p>}
+          <PrimaryButton type="submit" disabled={loading || !password}>
             {loading ? 'Signing in…' : 'Sign in'}
-          </button>
+          </PrimaryButton>
         </form>
 
-        <p className="mt-6 text-center text-[11px] text-zinc-600">
+        <p className="mt-6 text-center text-xs text-muted">
           Password is set on the server — never in this repo.
         </p>
       </div>

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Button, Input, Label, Select, Textarea } from '../components/FormField';
 import { Card } from '../components/Card';
+import { PageHeader } from '../components/PageHeader';
 import { CoachPanel } from '../components/CoachPanel';
 import { useTrainingData } from '../hooks/useTrainingData';
 import { useDeepSeek } from '../hooks/useDeepSeek';
@@ -82,14 +83,10 @@ export function Settings() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold">Settings</h1>
-      </header>
+      <PageHeader title="Settings" subtitle="Profile, plan, AI, and backups." />
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
-          Athlete profile
-        </h2>
+        <h2 className="section-label">Athlete profile</h2>
         <Input
           placeholder="Name"
           value={profile.name ?? ''}
@@ -143,9 +140,7 @@ export function Settings() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
-          AI settings
-        </h2>
+        <h2 className="section-label">AI settings</h2>
         <div>
           <Label>Cost safety</Label>
           <Select
@@ -182,26 +177,22 @@ export function Settings() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
-          Active plan
-        </h2>
+        <h2 className="section-label">Active plan</h2>
         {plan ? (
           <Card>
             <p className="font-medium">{plan.name}</p>
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-muted">
               Race: {plan.raceDate ?? '—'} · {plan.totalWeeks ?? plan.weeks.length} weeks ·{' '}
               {plan.weeks.length} parsed
             </p>
           </Card>
         ) : (
-          <p className="text-sm text-zinc-400">No plan loaded.</p>
+          <p className="text-sm text-muted">No plan loaded.</p>
         )}
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
-          Import training plan (.md)
-        </h2>
+        <h2 className="section-label">Import training plan (.md)</h2>
         <input
           ref={fileRef}
           type="file"
@@ -237,20 +228,18 @@ export function Settings() {
           </div>
         )}
         {warnings.map((w) => (
-          <p key={w} className="text-sm text-amber-400">
+          <p key={w} className="text-sm text-amber-700">
             · {w}
           </p>
         ))}
-        {importMsg && <p className="text-sm text-emerald-400">{importMsg}</p>}
-        <p className="text-xs text-zinc-500">
+        {importMsg && <p className="text-sm text-emerald-700">{importMsg}</p>}
+        <p className="text-xs text-muted">
           Workout logs stay separate when you switch plans. Sample plan in public/ is test input only.
         </p>
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
-          Backup &amp; restore
-        </h2>
+        <h2 className="section-label">Backup &amp; restore</h2>
         <Button type="button" variant="ghost" onClick={() => {
           const blob = new Blob([exportAllData()], { type: 'application/json' });
           const url = URL.createObjectURL(blob);
@@ -295,9 +284,7 @@ export function Settings() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
-          Account
-        </h2>
+        <h2 className="section-label">Account</h2>
         <Button
           type="button"
           variant="ghost"
@@ -311,14 +298,12 @@ export function Settings() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
-          Apple Shortcuts
-        </h2>
-        <Card className="text-sm text-zinc-300">
-          <code className="block break-all text-xs text-[#4a53ff]">
+        <h2 className="section-label">Apple Shortcuts</h2>
+        <Card className="text-sm text-foreground">
+          <code className="block break-all text-xs text-accent">
             {`${window.location.origin}/shortcut-log?type=run&duration=45&rpe=6&soreness=3&completed=1`}
           </code>
-          <p className="mt-2 text-xs text-zinc-500">
+          <p className="mt-2 text-xs text-muted">
             Params: type, duration, distance, distanceUnit, rpe, soreness, sleep, notes, completed,
             date
           </p>
