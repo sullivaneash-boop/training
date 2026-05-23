@@ -1,15 +1,30 @@
 import { useState } from 'react';
 import { Button, Input, Label, Select, Textarea } from '../components/FormField';
 import { Card } from '../components/Card';
+import { CoachPanel, AskDeepSeekButton } from '../components/CoachPanel';
 import { useTrainingData } from '../hooks/useTrainingData';
+import { useDeepSeek } from '../hooks/useDeepSeek';
 import { addWorkout } from '../lib/storage';
-import type { WorkoutType } from '../lib/types';
+import type { DistanceUnit, WorkoutType } from '../lib/types';
+import { getWeekNumber } from '../lib/weekUtils';
+import { isAiEnabled } from '../lib/storage';
 
-const TYPES: WorkoutType[] = ['swim', 'bike', 'run', 'strength', 'brick', 'mobility', 'rest', 'other'];
+const TYPES: WorkoutType[] = [
+  'swim',
+  'bike',
+  'run',
+  'strength',
+  'brick',
+  'mobility',
+  'rest',
+  'other',
+];
 
 export function Log() {
-  const { refresh } = useTrainingData();
+  const { plan, refresh, settings } = useTrainingData();
+  const coach = useDeepSeek();
   const [saved, setSaved] = useState(false);
+  const [lastWorkoutId, setLastWorkoutId] = useState<string | null>(null);
   const today = new Date().toISOString().slice(0, 10);
 
   const [form, setForm] = useState({
@@ -17,6 +32,7 @@ export function Log() {
     type: 'run' as WorkoutType,
     durationMinutes: 45,
     distance: '',
+    distanceUnit: 'mi' as DistanceUnit,
     rpe: 5,
     soreness: 3,
     sleepHours: 7,
@@ -26,13 +42,33 @@ export function Log() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    addWorkout({
-      ...form,
-      distance: form.distance || undefined,
+    const entry = addWorkout({
+      date: form.date,
+      type: form.type,
+      planId: plan?.id,
+      weekNumber: plan ? getWeekNumber(plan, new Date(form.date + 'T12:00:00')) : undefined,
+      durationMinutes: form.durationMinutes,
+      distance: form.distance ? parseFloat(form.distance) : undefined,
+      distanceUnit: form.distance ? form.distanceUnit : undefined,
+      rpe: form.rpe,
+      soreness: form.soreness,
+      sleepHours: form.sleepHours,
+      notes: form.notes || undefined,
+      completed: form.completed,
       source: 'manual',
     });
+    setLastWorkoutId(entry.id);
     setSaved(true);
     refresh();
+
+    if (settings.aiSafetyMode === 'auto_after_workout' && isAiEnabled()) {
+      coach.ask(
+        'daily_debrief',
+        { latestWorkoutId: entry.id },
+        { requestSummary: `auto debrief ${form.type} ${form.durationMinutes}m` },
+      );
+    }
+
     setTimeout(() => setSaved(false), 2000);
   }
 
@@ -76,13 +112,31 @@ export function Log() {
             required
           />
         </div>
-        <div>
-          <Label>Distance (optional)</Label>
-          <Input
-            placeholder="e.g. 5.2 mi, 2400 yd"
-            value={form.distance}
-            onChange={(e) => setForm({ ...form, distance: e.target.value })}
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Distance</Label>
+            <Input
+              type="number"
+              step="0.1"
+              placeholder="optional"
+              value={form.distance}
+              onChange={(e) => setForm({ ...form, distance: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label>Unit</Label>
+            <Select
+              value={form.distanceUnit}
+              onChange={(e) =>
+                setForm({ ...form, distanceUnit: e.target.value as DistanceUnit })
+              }
+            >
+              <option value="mi">mi</option>
+              <option value="km">km</option>
+              <option value="yd">yd</option>
+              <option value="m">m</option>
+            </Select>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -137,9 +191,33 @@ export function Log() {
         <Button type="submit">{saved ? 'Saved ✓' : 'Save workout'}</Button>
       </form>
 
+      {isAiEnabled() && lastWorkoutId && (
+        <div className="space-y-2">
+          <AskDeepSeekButton
+            label="Analyze this workout"
+            loading={coach.loading}
+            onClick={() =>
+              coach.ask(
+                'daily_debrief',
+                { latestWorkoutId: lastWorkoutId },
+                { requestSummary: `debrief ${form.type}` },
+              )
+            }
+          />
+          <CoachPanel
+            response={coach.response}
+            loading={coach.loading}
+            error={coach.error}
+            rawJson={coach.rawJson}
+            showDebug={settings.showJsonDebug}
+            onDismiss={coach.clear}
+          />
+        </div>
+      )}
+
       <Card>
         <p className="text-xs text-zinc-500">
-          Tip: use Apple Shortcuts to log via URL — see Settings → Shortcuts guide.
+          Shortcuts: /shortcut-log?type=run&duration=45&rpe=6 — see Settings.
         </p>
       </Card>
     </div>

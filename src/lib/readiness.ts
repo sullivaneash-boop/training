@@ -1,20 +1,21 @@
-import type { ReadinessLog, ReadinessStatus } from './types';
+import type { ReadinessCheck, ReadinessResult } from './types';
 
 export interface ReadinessInput {
-  sleep: number;
+  sleepHours: number;
   soreness: number;
   motivation: number;
   restingHr?: number;
   shoulderPain: boolean;
   kneePain: boolean;
+  stress?: number;
 }
 
-export interface ReadinessResult {
-  status: ReadinessStatus;
-  why: string;
+export interface ReadinessEval {
+  result: ReadinessResult;
+  deterministicReason: string;
 }
 
-export function evaluateReadiness(input: ReadinessInput): ReadinessResult {
+export function evaluateReadiness(input: ReadinessInput): ReadinessEval {
   const reasons: string[] = [];
   let score = 0;
 
@@ -24,12 +25,12 @@ export function evaluateReadiness(input: ReadinessInput): ReadinessResult {
     if (input.kneePain) reasons.push('Knee/run pain flagged — don’t grind through gait changes.');
   }
 
-  if (input.sleep < 5) {
+  if (input.sleepHours < 5) {
     score += 2;
-    reasons.push(`Sleep at ${input.sleep}h — under-recovered.`);
-  } else if (input.sleep < 6.5) {
+    reasons.push(`Sleep at ${input.sleepHours}h — under-recovered.`);
+  } else if (input.sleepHours < 6.5) {
     score += 1;
-    reasons.push(`Sleep at ${input.sleep}h — borderline.`);
+    reasons.push(`Sleep at ${input.sleepHours}h — borderline.`);
   }
 
   if (input.soreness >= 8) {
@@ -45,27 +46,32 @@ export function evaluateReadiness(input: ReadinessInput): ReadinessResult {
     reasons.push('Low motivation — keep it simple today.');
   }
 
-  if (input.restingHr && input.restingHr >= 10) {
+  if (input.stress && input.stress >= 8) {
+    score += 1;
+    reasons.push(`Stress ${input.stress}/10 — life load matters.`);
+  }
+
+  if (input.restingHr && input.restingHr >= 8) {
     score += 1;
     reasons.push('Elevated resting HR — possible fatigue signal.');
   }
 
-  let status: ReadinessStatus;
+  let result: ReadinessResult;
   if (score >= 4 || input.shoulderPain || input.kneePain) {
-    status = 'red';
+    result = 'red';
     if (!reasons.length) reasons.push('Multiple recovery flags — recovery/mobility only.');
   } else if (score >= 2) {
-    status = 'yellow';
+    result = 'yellow';
     if (!reasons.length) reasons.push('Some flags — reduce volume or intensity.');
   } else {
-    status = 'green';
+    result = 'green';
     reasons.push('Signals look fine — train as planned.');
   }
 
-  return { status, why: reasons.join(' ') };
+  return { result, deterministicReason: reasons.join(' ') };
 }
 
-export function statusColor(status: ReadinessStatus): string {
+export function statusColor(status: ReadinessResult): string {
   switch (status) {
     case 'green':
       return 'text-emerald-400';
@@ -76,7 +82,7 @@ export function statusColor(status: ReadinessStatus): string {
   }
 }
 
-export function statusBg(status: ReadinessStatus): string {
+export function statusBg(status: ReadinessResult): string {
   switch (status) {
     case 'green':
       return 'bg-emerald-500/15 border-emerald-500/30';
@@ -87,6 +93,9 @@ export function statusBg(status: ReadinessStatus): string {
   }
 }
 
-export function getTodayReadiness(logs: ReadinessLog[], date: string): ReadinessLog | null {
+export function getTodayReadiness(
+  logs: ReadinessCheck[],
+  date: string,
+): ReadinessCheck | null {
   return logs.find((l) => l.date === date) ?? null;
 }

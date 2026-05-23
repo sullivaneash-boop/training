@@ -1,71 +1,80 @@
 import { useRef, useState } from 'react';
-import { Button, Label, Textarea } from '../components/FormField';
+import { Button, Input, Label, Select, Textarea } from '../components/FormField';
 import { Card } from '../components/Card';
+import { CoachPanel } from '../components/CoachPanel';
 import { useTrainingData } from '../hooks/useTrainingData';
-import { parseTrainingPlanMarkdown } from '../lib/planParser';
+import { useDeepSeek } from '../hooks/useDeepSeek';
+import { parseTrainingPlanMarkdown, validatePlan } from '../lib/planParser';
+import { normalizePlanWithAi } from '../lib/deepseek';
 import {
   exportAllData,
   exportWorkoutsCsv,
   importAllData,
   savePlan,
 } from '../lib/storage';
-import type { AiCoachMode } from '../lib/types';
+import type { AiSafetyMode, AthleteGoal, AthleteProfile, DeepSeekModel, Discipline } from '../lib/types';
 
 export function Settings() {
-  const { plan, settings, updatePlan, updateSettings, refresh } = useTrainingData();
+  const { plan, athlete, settings, updatePlan, updateAthlete, updateSettings, refresh } =
+    useTrainingData();
+  const coach = useDeepSeek();
   const [pasteMd, setPasteMd] = useState('');
   const [warnings, setWarnings] = useState<string[]>([]);
   const [importMsg, setImportMsg] = useState('');
+  const [normalizing, setNormalizing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const [profile, setProfile] = useState<AthleteProfile>(
+    athlete ?? { id: 'athlete-1', goal: 'unknown' },
+  );
 
   function handleFile(file: File) {
     const reader = new FileReader();
-    reader.onload = () => {
-      const md = reader.result as string;
-      importPlan(md);
-    };
+    reader.onload = () => importPlanLocal(reader.result as string);
     reader.readAsText(file);
   }
 
-  function importPlan(md: string) {
+  function importPlanLocal(md: string) {
     const { plan: parsed, warnings: w } = parseTrainingPlanMarkdown(md);
+    const errors = validatePlan(parsed);
     savePlan(parsed);
     updatePlan(parsed);
-    setWarnings(w);
+    setWarnings([...w, ...errors.map((e) => `Validation: ${e}`)]);
     setPasteMd('');
     refresh();
   }
 
-  function handleExportJson() {
-    const blob = new Blob([exportAllData()], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `training-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function handleExportCsv() {
-    const blob = new Blob([exportWorkoutsCsv()], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `workouts-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function handleImportJson(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = importAllData(reader.result as string);
-      setImportMsg(result.ok ? 'Import successful' : (result.error ?? 'Failed'));
+  async function importWithDeepSeek(md: string) {
+    setNormalizing(true);
+    setWarnings([]);
+    try {
+      const { plan: aiPlan, coach: coachResp } = await normalizePlanWithAi(
+        md,
+        settings.deepseekModel,
+        profile,
+      );
+      const errors = validatePlan(aiPlan);
+      if (errors.length) {
+        setWarnings(errors.map((e) => `AI plan validation: ${e}`));
+      }
+      savePlan({ ...aiPlan, rawMarkdown: md, createdAt: new Date().toISOString() });
+      updatePlan(aiPlan);
+      coach.clear();
+      setImportMsg(coachResp.summary || 'Plan normalized with DeepSeek');
+      setPasteMd('');
       refresh();
-    };
-    reader.readAsText(file);
+    } catch (e) {
+      setImportMsg(e instanceof Error ? e.message : 'DeepSeek normalize failed');
+      importPlanLocal(md);
+      setImportMsg((prev) => `${prev} — fell back to local parser`);
+    } finally {
+      setNormalizing(false);
+    }
+  }
+
+  function saveProfile() {
+    updateAthlete(profile);
+    setImportMsg('Profile saved');
   }
 
   return (
@@ -76,13 +85,109 @@ export function Settings() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
+          Athlete profile
+        </h2>
+        <Input
+          placeholder="Name"
+          value={profile.name ?? ''}
+          onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+        />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Goal</Label>
+            <Select
+              value={profile.goal}
+              onChange={(e) => setProfile({ ...profile, goal: e.target.value as AthleteGoal })}
+            >
+              <option value="unknown">Unknown</option>
+              <option value="finish">Finish</option>
+              <option value="finish_strong">Finish strong</option>
+              <option value="pr">PR</option>
+            </Select>
+          </div>
+          <div>
+            <Label>Weakest discipline</Label>
+            <Select
+              value={profile.weakestDiscipline ?? 'unknown'}
+              onChange={(e) =>
+                setProfile({ ...profile, weakestDiscipline: e.target.value as Discipline })
+              }
+            >
+              <option value="unknown">Unknown</option>
+              <option value="swim">Swim</option>
+              <option value="bike">Bike</option>
+              <option value="run">Run</option>
+              <option value="strength">Strength</option>
+            </Select>
+          </div>
+        </div>
+        <Input
+          placeholder="Weekly hours available"
+          type="number"
+          value={profile.weeklyHoursAvailable ?? ''}
+          onChange={(e) =>
+            setProfile({ ...profile, weeklyHoursAvailable: +e.target.value || undefined })
+          }
+        />
+        <Textarea
+          placeholder="Injury notes"
+          value={profile.injuryNotes ?? ''}
+          onChange={(e) => setProfile({ ...profile, injuryNotes: e.target.value })}
+        />
+        <Button type="button" variant="ghost" onClick={saveProfile}>
+          Save profile
+        </Button>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
+          AI settings
+        </h2>
+        <div>
+          <Label>Cost safety</Label>
+          <Select
+            value={settings.aiSafetyMode}
+            onChange={(e) =>
+              updateSettings({ ...settings, aiSafetyMode: e.target.value as AiSafetyMode })
+            }
+          >
+            <option value="disabled">AI disabled</option>
+            <option value="on_demand">On-demand only (default)</option>
+            <option value="auto_after_workout">Auto after workout log</option>
+          </Select>
+        </div>
+        <div>
+          <Label>DeepSeek model</Label>
+          <Select
+            value={settings.deepseekModel}
+            onChange={(e) =>
+              updateSettings({ ...settings, deepseekModel: e.target.value as DeepSeekModel })
+            }
+          >
+            <option value="deepseek-v4-flash">deepseek-v4-flash</option>
+            <option value="deepseek-v4-pro">deepseek-v4-pro</option>
+          </Select>
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={settings.showJsonDebug}
+            onChange={(e) => updateSettings({ ...settings, showJsonDebug: e.target.checked })}
+          />
+          Show raw JSON debug on coach responses
+        </label>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
           Active plan
         </h2>
         {plan ? (
           <Card>
             <p className="font-medium">{plan.name}</p>
             <p className="text-sm text-zinc-400">
-              Race: {plan.raceDate} · {plan.totalWeeks} weeks · {plan.weeks.length} parsed
+              Race: {plan.raceDate ?? '—'} · {plan.totalWeeks ?? plan.weeks.length} weeks ·{' '}
+              {plan.weeks.length} parsed
             </p>
           </Card>
         ) : (
@@ -102,10 +207,10 @@ export function Settings() {
           onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
         />
         <Button type="button" variant="ghost" onClick={() => fileRef.current?.click()}>
-          Upload .md file
+          Upload .md (local parser)
         </Button>
         <div>
-          <Label>Or paste markdown</Label>
+          <Label>Paste markdown</Label>
           <Textarea
             value={pasteMd}
             onChange={(e) => setPasteMd(e.target.value)}
@@ -114,40 +219,28 @@ export function Settings() {
           />
         </div>
         {pasteMd.trim() && (
-          <Button type="button" onClick={() => importPlan(pasteMd)}>
-            Parse &amp; save plan
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button type="button" onClick={() => importPlanLocal(pasteMd)}>
+              Parse locally &amp; save
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={normalizing || settings.aiSafetyMode === 'disabled'}
+              onClick={() => importWithDeepSeek(pasteMd)}
+            >
+              {normalizing ? 'DeepSeek normalizing…' : 'Normalize with DeepSeek & save'}
+            </Button>
+          </div>
         )}
-        {warnings.length > 0 && (
-          <ul className="text-sm text-amber-400">
-            {warnings.map((w) => (
-              <li key={w}>· {w}</li>
-            ))}
-          </ul>
-        )}
+        {warnings.map((w) => (
+          <p key={w} className="text-sm text-amber-400">
+            · {w}
+          </p>
+        ))}
+        {importMsg && <p className="text-sm text-emerald-400">{importMsg}</p>}
         <p className="text-xs text-zinc-500">
-          Workout logs stay separate when you switch plans. Parser looks for race date, phase
-          table, weekly progression table, and phase week templates.
-        </p>
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
-          AI Coach mode
-        </h2>
-        <select
-          className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-white"
-          value={settings.aiCoachMode}
-          onChange={(e) =>
-            updateSettings({ aiCoachMode: e.target.value as AiCoachMode })
-          }
-        >
-          <option value="off">Off</option>
-          <option value="manual">Manual Export (default)</option>
-          <option value="api">DeepSeek API</option>
-        </select>
-        <p className="text-xs text-zinc-500">
-          DeepSeek requires DEEPSEEK_API_KEY on Vercel. Key never touches the browser.
+          Workout logs stay separate when you switch plans. Sample plan in public/ is test input only.
         </p>
       </section>
 
@@ -155,62 +248,73 @@ export function Settings() {
         <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
           Backup &amp; restore
         </h2>
-        <div className="flex flex-col gap-2">
-          <Button type="button" variant="ghost" onClick={handleExportJson}>
-            Export JSON (all data)
-          </Button>
-          <Button type="button" variant="ghost" onClick={handleExportCsv}>
-            Export CSV (workouts)
-          </Button>
-          <label className="block">
-            <span className="mb-1 block text-xs uppercase text-zinc-500">Import JSON</span>
-            <input type="file" accept=".json" onChange={handleImportJson} className="text-sm" />
-          </label>
-          {importMsg && <p className="text-sm text-emerald-400">{importMsg}</p>}
-        </div>
+        <Button type="button" variant="ghost" onClick={() => {
+          const blob = new Blob([exportAllData()], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `training-backup-${new Date().toISOString().slice(0, 10)}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }}>
+          Export JSON
+        </Button>
+        <Button type="button" variant="ghost" onClick={() => {
+          const blob = new Blob([exportWorkoutsCsv()], { type: 'text/csv' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `workouts-${new Date().toISOString().slice(0, 10)}.csv`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }}>
+          Export CSV
+        </Button>
+        <label className="block text-sm">
+          Import JSON
+          <input
+            type="file"
+            accept=".json"
+            className="mt-1 block w-full"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = () => {
+                const result = importAllData(reader.result as string);
+                setImportMsg(result.ok ? 'Restored' : (result.error ?? 'Failed'));
+                refresh();
+              };
+              reader.readAsText(file);
+            }}
+          />
+        </label>
       </section>
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
-          Apple Shortcuts URL logging
-        </h2>
-        <Card className="space-y-2 text-sm text-zinc-300">
-          <p>
-            After a workout, open this URL (replace YOUR_DOMAIN and values):
-          </p>
-          <code className="block break-all rounded-lg bg-black p-3 text-xs text-[#4a53ff]">
-            {`https://YOUR_DOMAIN/shortcut-log?type=run&duration=45&rpe=6&soreness=3&notes=easy&completed=1`}
-          </code>
-          <p className="text-xs text-zinc-500">
-            Params: type, duration, distance, rpe, soreness, sleep, notes, completed (0|1), date
-            (YYYY-MM-DD optional)
-          </p>
-          <p className="font-medium text-white">iPhone Shortcut steps:</p>
-          <ol className="list-decimal space-y-1 pl-4 text-xs">
-            <li>Shortcuts → + → Add Action → &quot;Get Contents of URL&quot;</li>
-            <li>Paste your shortcut-log URL with variables from Health/workout</li>
-            <li>Optional: run at end of workout via Automation → Workout Ends</li>
-            <li>Add to Home Screen or run manually post-session</li>
-          </ol>
-          <p className="text-xs italic text-zinc-500">
-            Apple Health: use &quot;Find Health Samples&quot; for duration, then append to URL.
-            Full HealthKit sync needs a native app — URL logging is the lightweight path.
-          </p>
-        </Card>
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
-          Add to Home Screen (iPhone)
+          Apple Shortcuts
         </h2>
         <Card className="text-sm text-zinc-300">
-          <ol className="list-decimal space-y-1 pl-4">
-            <li>Deploy to Vercel (HTTPS required)</li>
-            <li>Open in Safari → Share → Add to Home Screen</li>
-            <li>Opens standalone like an app</li>
-          </ol>
+          <code className="block break-all text-xs text-[#4a53ff]">
+            {`${window.location.origin}/shortcut-log?type=run&duration=45&rpe=6&soreness=3&completed=1`}
+          </code>
+          <p className="mt-2 text-xs text-zinc-500">
+            Params: type, duration, distance, distanceUnit, rpe, soreness, sleep, notes, completed,
+            date
+          </p>
         </Card>
       </section>
+
+      {coach.response && (
+        <CoachPanel
+          response={coach.response}
+          loading={coach.loading}
+          error={coach.error}
+          rawJson={coach.rawJson}
+          showDebug={settings.showJsonDebug}
+        />
+      )}
     </div>
   );
 }

@@ -1,113 +1,194 @@
-export type PhaseName = 'base' | 'build' | 'peak' | 'taper' | 'race' | 'unknown';
+// ─── Athlete ───────────────────────────────────────────────────────────────
+
+export type AthleteGoal = 'finish' | 'finish_strong' | 'pr' | 'unknown';
+export type Discipline = 'swim' | 'bike' | 'run' | 'strength' | 'unknown';
+
+export type AthleteProfile = {
+  id: string;
+  name?: string;
+  age?: number;
+  goal: AthleteGoal;
+  currentRace?: string;
+  preferredRestDay?: string;
+  weeklyHoursAvailable?: number;
+  weakestDiscipline?: Discipline;
+  injuryNotes?: string;
+  swimBaseline?: string;
+  bikeBaseline?: string;
+  runBaseline?: string;
+  strengthBaseline?: string;
+};
+
+// ─── Workouts ──────────────────────────────────────────────────────────────
 
 export type WorkoutType =
   | 'swim'
   | 'bike'
   | 'run'
-  | 'strength'
   | 'brick'
-  | 'rest'
+  | 'strength'
   | 'mobility'
+  | 'rest'
   | 'other';
 
-export type ReadinessStatus = 'green' | 'yellow' | 'red';
+export type DistanceUnit = 'mi' | 'km' | 'yd' | 'm';
 
-export type AiCoachMode = 'off' | 'manual' | 'api';
-
-export interface PhaseDefinition {
-  name: PhaseName;
-  label: string;
-  startWeek: number;
-  endWeek: number;
-  goal?: string;
-}
-
-export interface DayTemplate {
-  day: string;
-  label: string;
-  description: string;
-}
-
-export interface PhaseWeekTemplate {
-  phase: PhaseName;
-  days: DayTemplate[];
-}
-
-export interface WeekPlan {
-  weekNumber: number;
-  phase: PhaseName;
-  phaseLabel: string;
-  targetHours: number;
-  longRide: string;
-  longRun: string;
-  longSwim: string;
-  keyFocus: string;
-  isDeload: boolean;
-}
-
-export interface TrainingPlan {
-  id: string;
-  name: string;
-  raceDate: string;
-  planStartDate: string;
-  totalWeeks: number;
-  rawMarkdown: string;
-  phases: PhaseDefinition[];
-  weeks: WeekPlan[];
-  phaseTemplates: PhaseWeekTemplate[];
-  importedAt: string;
-}
-
-export interface WorkoutLog {
+export type WorkoutLog = {
   id: string;
   date: string;
+  planId?: string;
+  weekNumber?: number;
   type: WorkoutType;
-  durationMinutes: number;
-  distance?: string;
+  plannedTitle?: string;
+  completed: boolean;
+  durationMinutes?: number;
+  distance?: number;
+  distanceUnit?: DistanceUnit;
   rpe?: number;
   soreness?: number;
   sleepHours?: number;
+  restingHr?: number;
+  shoulderPain?: boolean;
+  kneePain?: boolean;
   notes?: string;
-  completed: boolean;
   source: 'manual' | 'shortcut' | 'import';
   createdAt: string;
-}
+};
 
-export interface ReadinessLog {
+// ─── Readiness ─────────────────────────────────────────────────────────────
+
+export type ReadinessResult = 'green' | 'yellow' | 'red';
+
+export type ReadinessCheck = {
   id: string;
   date: string;
-  sleep: number;
-  soreness: number;
-  motivation: number;
+  sleepHours?: number;
+  soreness?: number;
+  motivation?: number;
   restingHr?: number;
-  shoulderPain: boolean;
-  kneePain: boolean;
-  status: ReadinessStatus;
-  why: string;
+  shoulderPain?: boolean;
+  kneePain?: boolean;
+  stress?: number;
+  result: ReadinessResult;
+  deterministicReason: string;
+  aiReason?: string;
   createdAt: string;
-}
+};
 
-export interface AppSettings {
-  aiCoachMode: AiCoachMode;
-}
+// ─── Training plan ─────────────────────────────────────────────────────────
 
-export interface CoachApiRequest {
-  mode:
-    | 'debrief_summary'
-    | 'weekly_review'
-    | 'reshuffle_missed'
-    | 'readiness_explain'
-    | 'weakness_detection';
-  planSummary: string;
-  currentWeek: unknown;
-  workoutLogs: WorkoutLog[];
-  readinessLogs: ReadinessLog[];
-  userNotes?: string;
-}
+export type PlannedSession = {
+  day?: string;
+  type?: string;
+  title?: string;
+  duration?: string;
+  details?: string;
+  intensity?: string;
+};
 
-export interface CoachApiResponse {
+export type PlanPhase = {
+  name: string;
+  startWeek: number;
+  endWeek: number;
+  goal?: string;
+};
+
+export type PlanWeek = {
+  week: number;
+  phase?: string;
+  targetHours?: number;
+  longRide?: string;
+  longRun?: string;
+  longSwim?: string;
+  keyFocus?: string;
+  plannedSessions?: PlannedSession[];
+  notes?: string[];
+};
+
+export type TrainingPlan = {
+  id: string;
+  name: string;
+  raceName?: string;
+  raceDate?: string;
+  startDate?: string;
+  totalWeeks?: number;
+  sportTypes: string[];
+  phases: PlanPhase[];
+  weeks: PlanWeek[];
+  rules?: string[];
+  readinessWarnings?: string[];
+  gearChecklist?: string[];
+  raceNotes?: string[];
+  rawMarkdown: string;
+  createdAt: string;
+};
+
+// ─── DeepSeek / Coach ───────────────────────────────────────────────────────
+
+export type DeepSeekModel = 'deepseek-v4-flash' | 'deepseek-v4-pro';
+
+export type DeepSeekMode =
+  | 'normalize_plan'
+  | 'daily_debrief'
+  | 'readiness_explain'
+  | 'missed_workout_fix'
+  | 'weekly_review'
+  | 'race_weakness_scan'
+  | 'today_coach';
+
+export type CoachSignal = 'green' | 'yellow' | 'red' | 'neutral';
+
+export type CoachResponse = {
+  mode: string;
   summary: string;
-  suggestedAdjustment: string;
+  signal: CoachSignal;
+  keyFindings: string[];
+  recommendedAction: string;
+  adjustments: {
+    action: string;
+    reason: string;
+    priority: 'low' | 'medium' | 'high';
+  }[];
   warningFlags: string[];
-  nextAction: string;
-}
+  questionsForUser: string[];
+};
+
+export type DeepSeekRequest = {
+  mode: DeepSeekMode;
+  plan?: TrainingPlan;
+  rawMarkdown?: string;
+  athleteProfile?: AthleteProfile;
+  workoutLogs?: WorkoutLog[];
+  readinessChecks?: ReadinessCheck[];
+  userQuestion?: string;
+  date?: string;
+  missedSessionTypes?: string[];
+  latestWorkoutId?: string;
+  model?: DeepSeekModel;
+  deterministicReadiness?: { result: string; reason: string };
+};
+
+export type DeepSeekApiResponse = {
+  coach: CoachResponse;
+  plan?: TrainingPlan;
+};
+
+export type CoachInsight = {
+  id: string;
+  date: string;
+  mode: DeepSeekMode;
+  planId?: string;
+  requestSummary: string;
+  response: CoachResponse;
+  createdAt: string;
+};
+
+// ─── Settings ──────────────────────────────────────────────────────────────
+
+export type AiSafetyMode = 'disabled' | 'on_demand' | 'auto_after_workout';
+
+export type AppSettings = {
+  aiSafetyMode: AiSafetyMode;
+  deepseekModel: DeepSeekModel;
+  showJsonDebug: boolean;
+};

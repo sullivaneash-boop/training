@@ -1,170 +1,108 @@
 import { useState } from 'react';
-import { Button, Label, Textarea } from '../components/FormField';
+import { Label, Textarea } from '../components/FormField';
 import { Card } from '../components/Card';
+import { CoachPanel, AskDeepSeekButton } from '../components/CoachPanel';
 import { useTrainingData } from '../hooks/useTrainingData';
-import { buildCoachPrompt } from '../lib/coachExport';
-import { getWeekNumber, getWeekPlan } from '../lib/weekUtils';
-import type { CoachApiRequest, CoachApiResponse } from '../lib/types';
+import { useDeepSeek } from '../hooks/useDeepSeek';
+import type { DeepSeekMode } from '../lib/types';
+import { isAiEnabled } from '../lib/storage';
 
-const AI_MODES = [
-  { id: 'debrief_summary', label: 'Daily debrief summary' },
-  { id: 'weekly_review', label: 'Weekly coach review' },
-  { id: 'reshuffle_missed', label: 'Reshuffle missed workouts' },
-  { id: 'readiness_explain', label: 'Readiness explanation' },
-  { id: 'weakness_detection', label: 'Race weakness detection' },
-] as const;
+const MODES: { id: DeepSeekMode; label: string; desc: string }[] = [
+  { id: 'today_coach', label: 'What should I do today?', desc: 'Plan + logs + readiness' },
+  { id: 'daily_debrief', label: 'Daily debrief', desc: 'Latest workout analysis' },
+  { id: 'weekly_review', label: 'Weekly review', desc: 'Week vs plan' },
+  { id: 'missed_workout_fix', label: 'Fix missed workouts', desc: 'Reshuffle without cramming' },
+  { id: 'race_weakness_scan', label: 'Race weakness scan', desc: 'What would expose you race day' },
+  { id: 'readiness_explain', label: 'Readiness explain', desc: "Today's check-in" },
+];
 
 export function Coach() {
-  const { plan, workouts, readiness, settings } = useTrainingData();
+  const { plan, insights, settings } = useTrainingData();
+  const coach = useDeepSeek();
+  const [mode, setMode] = useState<DeepSeekMode>('today_coach');
   const [notes, setNotes] = useState('');
-  const [copied, setCopied] = useState(false);
-  const [apiMode, setApiMode] = useState<CoachApiRequest['mode']>('weekly_review');
-  const [apiResult, setApiResult] = useState<CoachApiResponse | null>(null);
-  const [apiLoading, setApiLoading] = useState(false);
-  const [apiError, setApiError] = useState('');
 
   if (!plan) {
-    return <p className="text-zinc-400">Load a training plan first.</p>;
+    return <p className="text-zinc-400">Load a training plan in Settings first.</p>;
   }
 
-  const weekNum = getWeekNumber(plan);
-  const weekPlan = getWeekPlan(plan, weekNum);
-  const prompt = buildCoachPrompt(plan, weekPlan, weekNum, workouts, readiness, notes);
-
-  async function copyPrompt() {
-    await navigator.clipboard.writeText(prompt);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  async function callDeepSeek() {
-    if (!plan) return;
-    setApiLoading(true);
-    setApiError('');
-    setApiResult(null);
-    try {
-      const activePlan = plan;
-      const res = await fetch('/api/coach', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode: apiMode,
-          planSummary: `${activePlan.name} — race ${activePlan.raceDate}, week ${weekNum}`,
-          currentWeek: weekPlan,
-          workoutLogs: workouts.filter((w) => {
-            const start = new Date(activePlan.planStartDate);
-            start.setDate(start.getDate() + (weekNum - 1) * 7);
-            const end = new Date(start);
-            end.setDate(end.getDate() + 6);
-            return w.date >= start.toISOString().slice(0, 10) && w.date <= end.toISOString().slice(0, 10);
-          }),
-          readinessLogs: readiness.slice(-14),
-          userNotes: notes,
-        } satisfies CoachApiRequest),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'API failed');
-      setApiResult(data);
-    } catch (e) {
-      setApiError(e instanceof Error ? e.message : 'Request failed');
-    } finally {
-      setApiLoading(false);
-    }
+  if (!isAiEnabled()) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-bold">AI Coach</h1>
+        <Card>
+          <p className="text-sm text-zinc-400">
+            AI is disabled. Enable <strong>on-demand</strong> or <strong>auto after workout</strong>{' '}
+            in Settings.
+          </p>
+        </Card>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-5">
       <header>
-        <h1 className="text-2xl font-bold">Coach</h1>
+        <h1 className="text-2xl font-bold">AI Coach</h1>
         <p className="text-sm text-zinc-400">
-          Mode:{' '}
-          {settings.aiCoachMode === 'manual'
-            ? 'Manual export (copy to Claude/ChatGPT)'
-            : settings.aiCoachMode === 'api'
-              ? 'DeepSeek API'
-              : 'Off'}
+          DeepSeek · {settings.deepseekModel} · {settings.aiSafetyMode.replace(/_/g, ' ')}
         </p>
       </header>
 
       <div>
-        <Label>Your notes for the coach</Label>
+        <Label>Mode</Label>
+        <select
+          className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-white"
+          value={mode}
+          onChange={(e) => setMode(e.target.value as DeepSeekMode)}
+        >
+          {MODES.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-zinc-500">
+          {MODES.find((m) => m.id === mode)?.desc}
+        </p>
+      </div>
+
+      <div>
+        <Label>Notes / question</Label>
         <Textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Shoulder felt tight, skipped Thursday swim…"
+          placeholder="Skipped Thursday swim, shoulder tight…"
         />
       </div>
 
-      {settings.aiCoachMode === 'manual' && (
-        <>
-          <Card>
-            <p className="text-xs uppercase text-zinc-500">Export prompt</p>
-            <pre className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap text-xs text-zinc-300">
-              {prompt.slice(0, 800)}
-              {prompt.length > 800 ? '…' : ''}
-            </pre>
-          </Card>
-          <Button type="button" onClick={copyPrompt}>
-            {copied ? 'Copied ✓' : 'Copy full prompt'}
-          </Button>
-        </>
-      )}
+      <AskDeepSeekButton
+        label="Ask DeepSeek"
+        loading={coach.loading}
+        onClick={() => coach.ask(mode, { userQuestion: notes }, { requestSummary: `${mode}: ${notes.slice(0, 80)}` })}
+      />
 
-      {settings.aiCoachMode === 'api' && (
-        <>
-          <div>
-            <Label>AI task</Label>
-            <select
-              className="w-full rounded-xl border border-white/15 bg-black px-4 py-3 text-white"
-              value={apiMode}
-              onChange={(e) => setApiMode(e.target.value as CoachApiRequest['mode'])}
-            >
-              {AI_MODES.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Button type="button" onClick={callDeepSeek} disabled={apiLoading}>
-            {apiLoading ? 'Thinking…' : 'Ask DeepSeek'}
-          </Button>
-          {apiError && <p className="text-sm text-red-400">{apiError}</p>}
-          {apiResult && (
-            <Card className="space-y-3">
-              <div>
-                <p className="text-xs text-zinc-500">Summary</p>
-                <p className="text-sm">{apiResult.summary}</p>
-              </div>
-              <div>
-                <p className="text-xs text-zinc-500">Adjustment</p>
-                <p className="text-sm">{apiResult.suggestedAdjustment}</p>
-              </div>
-              {apiResult.warningFlags?.length > 0 && (
-                <div>
-                  <p className="text-xs text-zinc-500">Flags</p>
-                  <ul className="text-sm text-amber-400">
-                    {apiResult.warningFlags.map((f) => (
-                      <li key={f}>· {f}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              <div>
-                <p className="text-xs text-zinc-500">Next action</p>
-                <p className="text-sm font-medium text-[#4a53ff]">{apiResult.nextAction}</p>
-              </div>
+      <CoachPanel
+        response={coach.response}
+        loading={coach.loading}
+        error={coach.error}
+        rawJson={coach.rawJson}
+        showDebug={settings.showJsonDebug}
+        onDismiss={coach.clear}
+      />
+
+      {insights.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs uppercase text-zinc-500">Saved insights</p>
+          {insights.slice(0, 5).map((ins) => (
+            <Card key={ins.id} className="text-sm">
+              <p className="text-xs text-zinc-500">
+                {ins.date} · {ins.mode}
+              </p>
+              <p className="mt-1 line-clamp-2 text-zinc-300">{ins.response.summary}</p>
             </Card>
-          )}
-        </>
-      )}
-
-      {settings.aiCoachMode === 'off' && (
-        <Card>
-          <p className="text-sm text-zinc-400">
-            AI Coach is off. Enable Manual Export or DeepSeek API in Settings.
-          </p>
-        </Card>
+          ))}
+        </div>
       )}
     </div>
   );

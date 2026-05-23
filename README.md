@@ -1,15 +1,30 @@
 # Training Command Center
 
-A lightweight, plan-agnostic training dashboard. Import any Markdown training guide, log workouts locally, run morning readiness checks, and export coach prompts — or optionally use DeepSeek via a serverless API.
+Plan-agnostic training dashboard. Import any Markdown plan, log workouts locally, run readiness checks, and use **DeepSeek** as an optional coach layer.
 
-Built for iPhone home screen use at 6am before a ride. No auth. No database. Local-first.
+Local-first · No auth · No database · Vercel-deployable · Mobile-first PWA
 
 ## Stack
 
 - Vite + React + TypeScript + Tailwind CSS v4
-- localStorage for plans, workouts, readiness
-- Vercel (static app + `/api/coach` serverless)
-- PWA via `vite-plugin-pwa`
+- localStorage (plans, workouts, readiness, athlete profile, coach insights)
+- Vercel serverless: `POST /api/deepseek`
+- PWA (`vite-plugin-pwa`)
+
+## Data model
+
+Entities in `src/lib/types.ts`:
+
+| Entity | Purpose |
+|--------|---------|
+| `AthleteProfile` | Goal, baselines, injury notes, weakest discipline |
+| `TrainingPlan` | Parsed/normalized plan with phases, weeks, sessions |
+| `WorkoutLog` | Per-session debrief (linked to `planId`, optional) |
+| `ReadinessCheck` | Morning check-in + deterministic + optional AI reason |
+| `CoachInsight` | Saved DeepSeek responses |
+| `AppSettings` | AI safety mode, model, JSON debug toggle |
+
+Workout logs are **separate** from the active plan — switch plans without losing history.
 
 ## Run locally
 
@@ -18,120 +33,148 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173
+App: http://localhost:5173
 
-On first load, the app loads `public/default-training-plan.md` if no plan is saved. Replace it anytime via **Settings → Import training plan**.
+### DeepSeek API locally
+
+The browser calls `/api/deepseek`. For local API testing:
+
+```bash
+# Install Vercel CLI if needed: npm i -g vercel
+cp .env.example .env.local
+# Add DEEPSEEK_API_KEY=sk-... to .env.local
+vercel dev
+```
+
+Or deploy to Vercel and test on your preview URL.
+
+### Test `/api/deepseek` with curl
+
+```bash
+curl -X POST http://localhost:3000/api/deepseek \
+  -H "Content-Type: application/json" \
+  -d '{
+    "mode": "today_coach",
+    "userQuestion": "Should I do my long ride today?",
+    "date": "2026-05-23"
+  }'
+```
+
+Production: replace host with your Vercel domain.
+
+## DeepSeek API key
+
+1. Create a key at [platform.deepseek.com](https://platform.deepseek.com)
+2. **Local:** add to `.env.local` (not committed):
+   ```
+   DEEPSEEK_API_KEY=sk-your-key
+   ```
+   Run with `vercel dev` so the serverless route receives it.
+3. **Vercel:** Project → Settings → Environment Variables → `DEEPSEEK_API_KEY` → Redeploy
+
+The key never ships to the browser.
+
+### Models
+
+- Default: `deepseek-v4-flash`
+- Optional in Settings: `deepseek-v4-pro`
+- Do **not** use deprecated `deepseek-chat` or `deepseek-reasoner`
+
+## AI modes (cost safety)
+
+| Setting | Behavior |
+|---------|----------|
+| **AI disabled** | No DeepSeek buttons |
+| **On-demand only** (default) | You tap "Ask DeepSeek" |
+| **Auto after workout** | Runs `daily_debrief` after each log |
+
+Toggle in **Settings → AI settings**.
+
+## DeepSeek coach modes
+
+| Mode | Where to use | What it does |
+|------|----------------|---------------|
+| `normalize_plan` | Settings → Normalize with DeepSeek | MD → `TrainingPlan` JSON |
+| `daily_debrief` | Log → Analyze this workout | One workout vs current week |
+| `readiness_explain` | Ready → DeepSeek explain | Explains deterministic GREEN/YELLOW/RED |
+| `missed_workout_fix` | Week → Fix missed workouts | Reshuffles week without cramming |
+| `weekly_review` | Week / AI Coach tab | Completed vs planned |
+| `race_weakness_scan` | Week / AI Coach tab | Race-day exposure ranked |
+| `today_coach` | Today → Ask DeepSeek | What to do today |
+
+All modes return structured JSON:
+
+```json
+{
+  "mode": "weekly_review",
+  "summary": "...",
+  "signal": "green|yellow|red|neutral",
+  "keyFindings": [],
+  "recommendedAction": "...",
+  "adjustments": [{"action":"","reason":"","priority":"medium"}],
+  "warningFlags": [],
+  "questionsForUser": []
+}
+```
+
+Responses are saved as `CoachInsight` in localStorage (copyable, dismissable, optional raw JSON debug).
 
 ## Deploy to Vercel
 
-1. Push this repo to GitHub
-2. Import the project at [vercel.com](https://vercel.com) — framework preset: **Vite**
-3. Build command: `npm run build` · Output: `dist`
+1. Push to GitHub
+2. Import on Vercel (Vite preset, output `dist`)
+3. Add `DEEPSEEK_API_KEY` in env vars
 4. Deploy
 
-`vercel.json` rewrites SPA routes to `index.html` and keeps `/api/*` as serverless functions.
+`vercel.json` routes SPA to `index.html` and keeps `/api/*` as serverless functions.
 
-### DeepSeek API (optional)
+## iPhone home screen
 
-1. Vercel project → **Settings → Environment Variables**
-2. Add `DEEPSEEK_API_KEY` with your key from [platform.deepseek.com](https://platform.deepseek.com)
-3. Redeploy
-4. In the app: **Settings → AI Coach mode → DeepSeek API**
-
-The API key never ships to the browser. The client calls `POST /api/coach`, which uses `deepseek-v4-flash`.
-
-## Add to iPhone Home Screen
-
-1. Deploy to Vercel (HTTPS required)
-2. Open the site in **Safari**
-3. Tap **Share** → **Add to Home Screen**
-4. Opens standalone with dark theme (`display: standalone`)
+1. Open deployed URL in **Safari**
+2. Share → **Add to Home Screen**
 
 ## Apple Shortcuts URL logging
 
-Log a workout by opening a URL with query params:
-
 ```
-https://YOUR_DOMAIN.vercel.app/shortcut-log?type=run&duration=45&rpe=6&soreness=3&notes=easy&completed=1
+https://YOUR_DOMAIN/shortcut-log?type=run&duration=45&rpe=6&soreness=3&distance=5.2&distanceUnit=mi&completed=1
 ```
 
-| Param | Required | Example |
-|-------|----------|---------|
-| `type` | no (default: other) | swim, bike, run, strength, brick, mobility, rest, other |
-| `duration` | **yes** | minutes, e.g. `45` |
-| `distance` | no | `5.2 mi` |
-| `rpe` | no | 1–10 |
-| `soreness` | no | 1–10 |
-| `sleep` | no | hours |
-| `notes` | no | URL-encoded text |
-| `completed` | no | `1` or `0` (default: 1) |
-| `date` | no | `YYYY-MM-DD` (default: today) |
+| Param | Required |
+|-------|----------|
+| `duration` | yes (minutes) |
+| `type` | no (swim, bike, run, strength, brick, mobility, rest, other) |
+| `distance`, `distanceUnit` | no |
+| `rpe`, `soreness`, `sleep` | no |
+| `notes` | no |
+| `completed` | no (`0` or `1`) |
+| `date` | no (`YYYY-MM-DD`) |
 
-### Example Shortcut
+## Import any training plan
 
-1. **Shortcuts** → **+** → add **Get Contents of URL**
-2. URL: `https://YOUR_DOMAIN/shortcut-log?type=run&duration=[DURATION]&rpe=6&notes=Post-run`
-3. Optional: **Automation** → **Workout Ends** → run shortcut
-4. For duration from Apple Health: add **Find Health Samples** (Workout) → **Get Details of Health Sample** → Duration → insert into URL
+1. **Settings → Upload .md** — fast local parser
+2. **Normalize with DeepSeek** — richer extraction (phases, rules, gear, sessions)
 
-Apple Health / Watch: full sync needs a native app. URL logging is the lightweight path; export workout duration from Health in Shortcuts and append to this URL.
+`public/default-training-plan.md` is **sample test input only** — the app does not hardcode any race.
 
-## Export / import data
+## Export / import
 
-- **Settings → Export JSON** — plan + all logs + settings
-- **Settings → Export CSV** — workouts only
-- **Settings → Import JSON** — restore backup
-
-Workout logs are stored separately from the active plan. Switching plans does not delete history.
-
-## Training plan import
-
-Upload or paste any `.md` file. The parser extracts:
-
-- Race date (from `Race day:` or similar)
-- Plan start (from `Plan start:` or inferred from race − weeks)
-- Phase table (`| Phase | Weeks |`)
-- Weekly progression (`| Wk | Phase | Hrs | Long Ride | …`)
-- Phase week templates (`### Base phase week (example)` with `**Mon** — …`)
-
-See `src/lib/types.ts` for the normalized schema.
-
-## Features
-
-| Tab | Purpose |
-|-----|---------|
-| **Today** | Current week, phase, today's session, weekly targets |
-| **Week** | Hours, sessions, brick status, completion bar |
-| **Log** | Daily debrief form |
-| **Ready** | Morning readiness (GREEN / YELLOW / RED) |
-| **Coach** | Manual prompt export or DeepSeek API |
-| **More** | Plan import, backup, Shortcuts docs, AI mode |
-
-## AI Coach modes
-
-| Mode | Behavior |
-|------|----------|
-| **Off** | No coach UI actions |
-| **Manual Export** (default) | Copy a structured prompt into Claude/ChatGPT/DeepSeek |
-| **DeepSeek API** | Calls `/api/coach` with selected task |
-
-API tasks: debrief summary, weekly review, reshuffle missed, readiness explain, weakness detection.
+- **Export JSON** — plan, athlete, workouts, readiness, insights, settings
+- **Export CSV** — workouts
+- **Import JSON** — full restore
 
 ## Project structure
 
 ```
-api/coach.ts          # Vercel serverless DeepSeek proxy
-public/               # Default plan MD, PWA icons
-src/lib/
-  types.ts            # Plan schema
-  planParser.ts       # Markdown → TrainingPlan
-  storage.ts          # localStorage
-  readiness.ts        # Deterministic rules
-  weeklyStats.ts
-  coachExport.ts
-src/pages/            # Route screens
+api/deepseek.ts       # Serverless DeepSeek proxy (JSON mode)
+src/lib/types.ts      # Data model
+src/lib/planParser.ts # Local MD parser
+src/lib/deepseek.ts   # Client wrapper
+src/lib/storage.ts    # localStorage + migration
+src/hooks/useDeepSeek.ts
+src/components/CoachPanel.tsx
+src/pages/
 ```
 
 ## License
 
-Personal use. Not medical advice — you know your body.
+Personal training utility. Not medical advice.

@@ -1,19 +1,41 @@
-import type { AppSettings, ReadinessLog, TrainingPlan, WorkoutLog } from './types';
-import { parseTrainingPlanMarkdown } from './planParser';
+import type {
+  AppSettings,
+  AthleteProfile,
+  CoachInsight,
+  ReadinessCheck,
+  TrainingPlan,
+  WorkoutLog,
+} from './types';
+import { parseTrainingPlanMarkdown, validatePlan } from './planParser';
+import { migratePlan, migrateReadiness, migrateSettings, migrateWorkout } from './migrate';
 
 const KEYS = {
   plan: 'training-plan-active',
   workouts: 'training-workouts',
   readiness: 'training-readiness',
+  athlete: 'training-athlete',
+  insights: 'training-coach-insights',
   settings: 'training-settings',
 } as const;
 
-const DEFAULT_SETTINGS: AppSettings = { aiCoachMode: 'manual' };
+const DEFAULT_SETTINGS: AppSettings = {
+  aiSafetyMode: 'on_demand',
+  deepseekModel: 'deepseek-v4-flash',
+  showJsonDebug: false,
+};
+
+const DEFAULT_ATHLETE: AthleteProfile = {
+  id: 'athlete-1',
+  goal: 'unknown',
+};
+
+// ─── Plan ────────────────────────────────────────────────────────────────────
 
 export function loadPlan(): TrainingPlan | null {
   try {
     const raw = localStorage.getItem(KEYS.plan);
-    return raw ? (JSON.parse(raw) as TrainingPlan) : null;
+    if (!raw) return null;
+    return migratePlan(JSON.parse(raw));
   } catch {
     return null;
   }
@@ -23,14 +45,28 @@ export function savePlan(plan: TrainingPlan): void {
   localStorage.setItem(KEYS.plan, JSON.stringify(plan));
 }
 
-export function clearPlan(): void {
-  localStorage.removeItem(KEYS.plan);
+// ─── Athlete ───────────────────────────────────────────────────────────────
+
+export function loadAthlete(): AthleteProfile {
+  try {
+    const raw = localStorage.getItem(KEYS.athlete);
+    return raw ? { ...DEFAULT_ATHLETE, ...(JSON.parse(raw) as AthleteProfile) } : DEFAULT_ATHLETE;
+  } catch {
+    return DEFAULT_ATHLETE;
+  }
 }
+
+export function saveAthlete(profile: AthleteProfile): void {
+  localStorage.setItem(KEYS.athlete, JSON.stringify(profile));
+}
+
+// ─── Workouts ──────────────────────────────────────────────────────────────
 
 export function loadWorkouts(): WorkoutLog[] {
   try {
     const raw = localStorage.getItem(KEYS.workouts);
-    return raw ? (JSON.parse(raw) as WorkoutLog[]) : [];
+    if (!raw) return [];
+    return (JSON.parse(raw) as unknown[]).map(migrateWorkout);
   } catch {
     return [];
   }
@@ -51,28 +87,31 @@ export function addWorkout(log: Omit<WorkoutLog, 'id' | 'createdAt'>): WorkoutLo
   return entry;
 }
 
-export function loadReadiness(): ReadinessLog[] {
+export function getWorkoutById(id: string): WorkoutLog | undefined {
+  return loadWorkouts().find((w) => w.id === id);
+}
+
+// ─── Readiness ─────────────────────────────────────────────────────────────
+
+export function loadReadiness(): ReadinessCheck[] {
   try {
     const raw = localStorage.getItem(KEYS.readiness);
-    return raw ? (JSON.parse(raw) as ReadinessLog[]) : [];
+    if (!raw) return [];
+    return (JSON.parse(raw) as unknown[]).map(migrateReadiness);
   } catch {
     return [];
   }
 }
 
-export function saveReadiness(logs: ReadinessLog[]): void {
+export function saveReadiness(logs: ReadinessCheck[]): void {
   localStorage.setItem(KEYS.readiness, JSON.stringify(logs));
 }
 
 export function addReadiness(
-  entry: Omit<ReadinessLog, 'id' | 'createdAt' | 'status' | 'why'>,
-  status: ReadinessLog['status'],
-  why: string,
-): ReadinessLog {
-  const log: ReadinessLog = {
+  entry: Omit<ReadinessCheck, 'id' | 'createdAt'>,
+): ReadinessCheck {
+  const log: ReadinessCheck = {
     ...entry,
-    status,
-    why,
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
   };
@@ -81,10 +120,45 @@ export function addReadiness(
   return log;
 }
 
+export function updateReadinessAiReason(id: string, aiReason: string): void {
+  const all = loadReadiness().map((r) => (r.id === id ? { ...r, aiReason } : r));
+  saveReadiness(all);
+}
+
+// ─── Coach insights ────────────────────────────────────────────────────────
+
+export function loadCoachInsights(): CoachInsight[] {
+  try {
+    const raw = localStorage.getItem(KEYS.insights);
+    return raw ? (JSON.parse(raw) as CoachInsight[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveCoachInsights(insights: CoachInsight[]): void {
+  localStorage.setItem(KEYS.insights, JSON.stringify(insights));
+}
+
+export function addCoachInsight(
+  entry: Omit<CoachInsight, 'id' | 'createdAt'>,
+): CoachInsight {
+  const insight: CoachInsight = {
+    ...entry,
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+  };
+  const all = [insight, ...loadCoachInsights()].slice(0, 100);
+  saveCoachInsights(all);
+  return insight;
+}
+
+// ─── Settings ──────────────────────────────────────────────────────────────
+
 export function loadSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(KEYS.settings);
-    return raw ? { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as AppSettings) } : DEFAULT_SETTINGS;
+    return raw ? migrateSettings(JSON.parse(raw)) : DEFAULT_SETTINGS;
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -94,13 +168,21 @@ export function saveSettings(settings: AppSettings): void {
   localStorage.setItem(KEYS.settings, JSON.stringify(settings));
 }
 
+export function isAiEnabled(): boolean {
+  return loadSettings().aiSafetyMode !== 'disabled';
+}
+
+// ─── Import / export ───────────────────────────────────────────────────────
+
 export function exportAllData(): string {
   return JSON.stringify(
     {
       exportedAt: new Date().toISOString(),
       plan: loadPlan(),
+      athlete: loadAthlete(),
       workouts: loadWorkouts(),
       readiness: loadReadiness(),
+      insights: loadCoachInsights(),
       settings: loadSettings(),
     },
     null,
@@ -112,14 +194,21 @@ export function importAllData(json: string): { ok: boolean; error?: string } {
   try {
     const data = JSON.parse(json) as {
       plan?: TrainingPlan;
+      athlete?: AthleteProfile;
       workouts?: WorkoutLog[];
-      readiness?: ReadinessLog[];
+      readiness?: ReadinessCheck[];
+      insights?: CoachInsight[];
       settings?: AppSettings;
     };
-    if (data.plan) savePlan(data.plan);
-    if (data.workouts) saveWorkouts(data.workouts);
-    if (data.readiness) saveReadiness(data.readiness);
-    if (data.settings) saveSettings(data.settings);
+    if (data.plan) {
+      const migrated = migratePlan(data.plan);
+      if (migrated) savePlan(migrated);
+    }
+    if (data.athlete) saveAthlete(data.athlete);
+    if (data.workouts) saveWorkouts(data.workouts.map(migrateWorkout));
+    if (data.readiness) saveReadiness(data.readiness.map(migrateReadiness));
+    if (data.insights) saveCoachInsights(data.insights);
+    if (data.settings) saveSettings(migrateSettings(data.settings));
     return { ok: true };
   } catch {
     return { ok: false, error: 'Invalid JSON file' };
@@ -133,9 +222,9 @@ export function exportWorkoutsCsv(): string {
     'type',
     'durationMinutes',
     'distance',
+    'distanceUnit',
     'rpe',
     'soreness',
-    'sleepHours',
     'completed',
     'notes',
     'source',
@@ -144,11 +233,11 @@ export function exportWorkoutsCsv(): string {
     [
       l.date,
       l.type,
-      l.durationMinutes,
+      l.durationMinutes ?? '',
       l.distance ?? '',
+      l.distanceUnit ?? '',
       l.rpe ?? '',
       l.soreness ?? '',
-      l.sleepHours ?? '',
       l.completed,
       `"${(l.notes ?? '').replace(/"/g, '""')}"`,
       l.source,
@@ -162,12 +251,11 @@ export async function loadDefaultPlan(): Promise<TrainingPlan | null> {
     const res = await fetch('/default-training-plan.md');
     if (!res.ok) return null;
     const md = await res.text();
-    return parseTrainingPlanMarkdown(md, 'default-im703').plan;
+    const { plan } = parseTrainingPlanMarkdown(md, 'default-sample');
+    const errors = validatePlan(plan);
+    if (errors.length) console.warn('Default plan validation:', errors);
+    return plan;
   } catch {
     return null;
   }
-}
-
-export function ensurePlan(): TrainingPlan | null {
-  return loadPlan();
 }

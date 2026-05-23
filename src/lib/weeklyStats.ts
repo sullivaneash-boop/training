@@ -1,4 +1,4 @@
-import type { TrainingPlan, WeekPlan, WorkoutLog, WorkoutType } from './types';
+import type { PlanWeek, TrainingPlan, WorkoutLog, WorkoutType } from './types';
 import { formatDateISO, getWeekDateRange } from './weekUtils';
 
 export interface WeeklyStats {
@@ -26,22 +26,26 @@ function logsInWeek(logs: WorkoutLog[], plan: TrainingPlan, weekNumber: number):
 
 export function computeWeeklyStats(
   plan: TrainingPlan,
-  weekPlan: WeekPlan | null,
+  weekPlan: PlanWeek | null,
   weekNumber: number,
   logs: WorkoutLog[],
 ): WeeklyStats {
   const weekLogs = logsInWeek(logs, plan, weekNumber);
   const completedHours =
-    Math.round((weekLogs.reduce((s, l) => s + l.durationMinutes, 0) / 60) * 10) / 10;
+    Math.round(
+      (weekLogs.reduce((s, l) => s + (l.durationMinutes ?? 0), 0) / 60) * 10,
+    ) / 10;
 
   const countType = (t: WorkoutType) => weekLogs.filter((l) => l.type === t).length;
 
   const bikeLogs = weekLogs.filter((l) => l.type === 'bike');
   const runLogs = weekLogs.filter((l) => l.type === 'run');
   const longestRideMinutes = bikeLogs.length
-    ? Math.max(...bikeLogs.map((l) => l.durationMinutes))
+    ? Math.max(...bikeLogs.map((l) => l.durationMinutes ?? 0))
     : 0;
-  const longestRunMinutes = runLogs.length ? Math.max(...runLogs.map((l) => l.durationMinutes)) : 0;
+  const longestRunMinutes = runLogs.length
+    ? Math.max(...runLogs.map((l) => l.durationMinutes ?? 0))
+    : 0;
 
   const brickCompleted = weekLogs.some((l) => l.type === 'brick');
 
@@ -54,15 +58,16 @@ export function computeWeeklyStats(
   const { end } = getWeekDateRange(plan, weekNumber);
   const weekEnded = formatDateISO(end) < today;
 
-  if (weekEnded || weekNumber < getCurrentWeekNumber(plan)) {
+  if (weekEnded) {
     for (const t of SESSION_TYPES) {
       const expected = t === 'strength' ? 1 : 2;
       const actual = countType(t);
       if (actual < expected) {
-        missedSessions.push(
-          `${t}: logged ${actual}, typical target ~${expected} this week`,
-        );
+        missedSessions.push(`${t}: logged ${actual}, typical target ~${expected}`);
       }
+    }
+    if (weekPlan && /brick/i.test(weekPlan.keyFocus ?? '')) {
+      if (!brickCompleted) missedSessions.push('brick: not logged');
     }
   }
 
@@ -81,15 +86,6 @@ export function computeWeeklyStats(
   };
 }
 
-function getCurrentWeekNumber(plan: TrainingPlan): number {
-  const start = new Date(plan.planStartDate + 'T00:00:00');
-  const d = new Date();
-  const diffDays = Math.floor((d.getTime() - start.getTime()) / 86400000);
-  return Math.min(plan.totalWeeks, Math.max(1, Math.floor(diffDays / 7) + 1));
-}
-
-export function inferPlannedSessions(weekPlan: WeekPlan | null): number {
-  if (!weekPlan) return 6;
-  if (weekPlan.isDeload) return 4;
-  return 6;
+export function getMissedSessionTypes(stats: WeeklyStats): string[] {
+  return stats.missedSessions.map((m) => m.split(':')[0].trim());
 }

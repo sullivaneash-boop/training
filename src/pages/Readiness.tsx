@@ -1,79 +1,70 @@
 import { useState } from 'react';
 import { Button, Input, Label } from '../components/FormField';
 import { Card } from '../components/Card';
+import { CoachPanel, AskDeepSeekButton } from '../components/CoachPanel';
 import { useTrainingData } from '../hooks/useTrainingData';
-import { addReadiness } from '../lib/storage';
-import { evaluateReadiness, statusBg, statusColor } from '../lib/readiness';
-import { getTodayReadiness } from '../lib/readiness';
+import { useDeepSeek } from '../hooks/useDeepSeek';
+import { addReadiness, updateReadinessAiReason } from '../lib/storage';
+import { evaluateReadiness, getTodayReadiness, statusBg, statusColor } from '../lib/readiness';
+import { isAiEnabled } from '../lib/storage';
 
 export function Readiness() {
   const { readiness, refresh, settings } = useTrainingData();
+  const coach = useDeepSeek();
   const today = new Date().toISOString().slice(0, 10);
   const existing = getTodayReadiness(readiness, today);
-  const [result, setResult] = useState<{ status: 'green' | 'yellow' | 'red'; why: string } | null>(
-    existing ? { status: existing.status, why: existing.why } : null,
-  );
-  const [aiLoading, setAiLoading] = useState(false);
+  const [checkId, setCheckId] = useState<string | null>(existing?.id ?? null);
+  const [result, setResult] = useState(existing?.result ?? null);
+  const [reason, setReason] = useState(existing?.deterministicReason ?? '');
 
   const [form, setForm] = useState({
-    sleep: 7,
-    soreness: 3,
-    motivation: 7,
+    sleepHours: existing?.sleepHours ?? 7,
+    soreness: existing?.soreness ?? 3,
+    motivation: existing?.motivation ?? 7,
     restingHr: '' as string | number,
-    shoulderPain: false,
-    kneePain: false,
+    shoulderPain: existing?.shoulderPain ?? false,
+    kneePain: existing?.kneePain ?? false,
+    stress: existing?.stress ?? 5,
   });
 
   function handleCheck() {
     const input = {
-      sleep: form.sleep,
+      sleepHours: form.sleepHours,
       soreness: form.soreness,
       motivation: form.motivation,
       restingHr: form.restingHr ? Number(form.restingHr) : undefined,
       shoulderPain: form.shoulderPain,
       kneePain: form.kneePain,
+      stress: form.stress,
     };
     const evalResult = evaluateReadiness(input);
-    setResult(evalResult);
-    addReadiness(
-      {
-        date: today,
-        ...input,
-        restingHr: input.restingHr,
-      },
-      evalResult.status,
-      evalResult.why,
-    );
+    setResult(evalResult.result);
+    setReason(evalResult.deterministicReason);
+    const log = addReadiness({
+      date: today,
+      ...input,
+      result: evalResult.result,
+      deterministicReason: evalResult.deterministicReason,
+    });
+    setCheckId(log.id);
     refresh();
   }
 
   async function explainWithAi() {
-    if (settings.aiCoachMode !== 'api' || !result) return;
-    setAiLoading(true);
-    try {
-      const res = await fetch('/api/coach', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode: 'readiness_explain',
-          planSummary: 'Readiness check-in',
-          currentWeek: null,
-          workoutLogs: [],
-          readinessLogs: loadRecent(),
-          userNotes: JSON.stringify(form),
-        }),
-      });
-      const data = await res.json();
-      if (data.summary) setResult({ status: result.status, why: data.summary });
-    } catch {
-      /* keep deterministic result */
-    } finally {
-      setAiLoading(false);
+    if (!result) return;
+    const response = await coach.ask(
+      'readiness_explain',
+      {
+        deterministicReadiness: { result, reason },
+        userQuestion: `Deterministic: ${result}. ${reason}`,
+      },
+      { requestSummary: `readiness ${result}` },
+    );
+    if (response && checkId) {
+      const aiText = `${response.summary} ${response.recommendedAction}`.trim();
+      updateReadinessAiReason(checkId, aiText);
+      refresh();
     }
-  }
-
-  function loadRecent() {
-    return readiness.slice(-5);
   }
 
   return (
@@ -91,8 +82,8 @@ export function Readiness() {
             step={0.5}
             min={0}
             max={14}
-            value={form.sleep}
-            onChange={(e) => setForm({ ...form, sleep: +e.target.value })}
+            value={form.sleepHours}
+            onChange={(e) => setForm({ ...form, sleepHours: +e.target.value })}
           />
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -117,15 +108,27 @@ export function Readiness() {
             />
           </div>
         </div>
-        <div>
-          <Label>Resting HR (optional, +bpm above baseline)</Label>
-          <Input
-            type="number"
-            min={0}
-            placeholder="e.g. 5 if +5 bpm"
-            value={form.restingHr}
-            onChange={(e) => setForm({ ...form, restingHr: e.target.value })}
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Stress 1–10</Label>
+            <Input
+              type="number"
+              min={1}
+              max={10}
+              value={form.stress}
+              onChange={(e) => setForm({ ...form, stress: +e.target.value })}
+            />
+          </div>
+          <div>
+            <Label>Resting HR (+bpm)</Label>
+            <Input
+              type="number"
+              min={0}
+              placeholder="optional"
+              value={form.restingHr}
+              onChange={(e) => setForm({ ...form, restingHr: e.target.value })}
+            />
+          </div>
         </div>
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -149,28 +152,37 @@ export function Readiness() {
       </div>
 
       {result && (
-        <Card className={statusBg(result.status)}>
-          <p className={`text-2xl font-bold uppercase ${statusColor(result.status)}`}>
-            {result.status}
-          </p>
+        <Card className={statusBg(result)}>
+          <p className={`text-2xl font-bold uppercase ${statusColor(result)}`}>{result}</p>
           <p className="mt-2 text-sm leading-relaxed text-zinc-200">
-            {result.status === 'green' && 'Train as planned.'}
-            {result.status === 'yellow' && 'Reduce volume or intensity.'}
-            {result.status === 'red' && 'Recovery / mobility only.'}
+            {result === 'green' && 'Train as planned.'}
+            {result === 'yellow' && 'Reduce volume or intensity.'}
+            {result === 'red' && 'Recovery / mobility only.'}
           </p>
-          <p className="mt-3 text-sm text-zinc-400">Why: {result.why}</p>
-          {settings.aiCoachMode === 'api' && (
-            <button
-              type="button"
-              onClick={explainWithAi}
-              disabled={aiLoading}
-              className="mt-3 text-xs text-[#4a53ff] underline"
-            >
-              {aiLoading ? 'Asking coach…' : 'DeepSeek deeper explanation'}
-            </button>
+          <p className="mt-3 text-sm text-zinc-400">Why: {reason}</p>
+          {existing?.aiReason && (
+            <p className="mt-2 text-sm text-zinc-300">Coach: {existing.aiReason}</p>
+          )}
+          {isAiEnabled() && (
+            <div className="mt-3">
+              <AskDeepSeekButton
+                label="DeepSeek explain & adjust"
+                loading={coach.loading}
+                onClick={explainWithAi}
+              />
+            </div>
           )}
         </Card>
       )}
+
+      <CoachPanel
+        response={coach.response}
+        loading={coach.loading}
+        error={coach.error}
+        rawJson={coach.rawJson}
+        showDebug={settings.showJsonDebug}
+        onDismiss={coach.clear}
+      />
     </div>
   );
 }

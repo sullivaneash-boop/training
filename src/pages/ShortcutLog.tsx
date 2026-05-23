@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { addWorkout } from '../lib/storage';
-import type { WorkoutType } from '../lib/types';
+import { addWorkout, loadPlan, loadSettings, isAiEnabled } from '../lib/storage';
+import { callDeepSeek } from '../lib/deepseek';
+import type { DistanceUnit, WorkoutType } from '../lib/types';
+import { getWeekNumber } from '../lib/weekUtils';
 
 const VALID_TYPES: WorkoutType[] = [
   'swim',
@@ -28,24 +30,28 @@ export function ShortcutLog() {
       : undefined;
     const sleep = params.get('sleep') ? parseFloat(params.get('sleep')!) : undefined;
     const notes = params.get('notes') ?? undefined;
-    const distance = params.get('distance') ?? undefined;
+    const distRaw = params.get('distance');
+    const distanceUnit = (params.get('distanceUnit') ?? 'mi') as DistanceUnit;
     const completed = params.get('completed') !== '0';
-    const date =
-      params.get('date') ?? new Date().toISOString().slice(0, 10);
+    const date = params.get('date') ?? new Date().toISOString().slice(0, 10);
 
     if (!duration || duration <= 0) {
       setStatus('error');
-      setMessage('Missing or invalid duration param. Example: ?type=run&duration=45');
+      setMessage('Missing duration. Example: ?type=run&duration=45');
       return;
     }
 
     const workoutType = VALID_TYPES.includes(type) ? type : 'other';
+    const plan = loadPlan();
 
-    addWorkout({
+    const entry = addWorkout({
       date,
       type: workoutType,
+      planId: plan?.id,
+      weekNumber: plan ? getWeekNumber(plan, new Date(date + 'T12:00:00')) : undefined,
       durationMinutes: duration,
-      distance,
+      distance: distRaw ? parseFloat(distRaw) : undefined,
+      distanceUnit: distRaw ? distanceUnit : undefined,
       rpe,
       soreness,
       sleepHours: sleep,
@@ -55,9 +61,15 @@ export function ShortcutLog() {
     });
 
     setStatus('ok');
-    setMessage(
-      `Logged ${workoutType} ${duration}min on ${date}${notes ? ` — ${notes}` : ''}`,
-    );
+    setMessage(`Logged ${workoutType} ${duration}min on ${date}`);
+
+    const settings = loadSettings();
+    if (settings.aiSafetyMode === 'auto_after_workout' && isAiEnabled()) {
+      callDeepSeek(
+        { mode: 'daily_debrief', latestWorkoutId: entry.id, plan: plan ?? undefined },
+        settings.deepseekModel,
+      ).catch(() => {});
+    }
   }, [params]);
 
   return (
