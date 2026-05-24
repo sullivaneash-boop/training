@@ -1,18 +1,20 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import {
   authStatus,
+  isBetterAuthEnabled,
   isAuthEnabled,
-  isRequestAuthenticated,
+  isRequestAuthenticatedAny,
 } from '../lib/auth.js';
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const status = authStatus();
+  const requiresAuth = isBetterAuthEnabled() || isAuthEnabled();
 
-  if (!isAuthEnabled()) {
+  if (!requiresAuth) {
     return res.status(200).json({
       authenticated: true,
       authRequired: false,
@@ -20,7 +22,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  const authenticated = isRequestAuthenticated(req);
+  const authenticated = await isRequestAuthenticatedAny(req);
   return res.status(200).json({
     authenticated,
     authRequired: true,

@@ -1,14 +1,27 @@
 export async function checkAuth(): Promise<{ authenticated: boolean; authRequired: boolean }> {
   try {
-    const res = await fetch('/api/auth/check', {
+    const sessionRes = await fetch('/api/auth/get-session', {
       credentials: 'include',
       cache: 'no-store',
     });
-    const data = (await res.json()) as {
+    if (sessionRes.ok) {
+      const sessionData = (await sessionRes.json().catch(() => ({}))) as {
+        session?: unknown;
+        user?: unknown;
+      };
+      const authenticated = Boolean(sessionData.session && sessionData.user);
+      return { authenticated, authRequired: true };
+    }
+
+    const fallbackRes = await fetch('/api/auth/check', {
+      credentials: 'include',
+      cache: 'no-store',
+    });
+    const data = (await fallbackRes.json()) as {
       authenticated?: boolean;
       authRequired?: boolean;
     };
-    if (!res.ok) {
+    if (!fallbackRes.ok) {
       return { authenticated: false, authRequired: true };
     }
     return {
@@ -20,7 +33,7 @@ export async function checkAuth(): Promise<{ authenticated: boolean; authRequire
   }
 }
 
-export async function login(password: string): Promise<{ ok: boolean; error?: string }> {
+export async function legacyLogin(password: string): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
@@ -51,5 +64,12 @@ export async function logout(): Promise<void> {
     method: 'POST',
     credentials: 'include',
     cache: 'no-store',
+  });
+  await fetch('/api/auth/sign-out', {
+    method: 'POST',
+    credentials: 'include',
+    cache: 'no-store',
+  }).catch(() => {
+    // Ignore if Better Auth endpoint isn't configured in this environment.
   });
 }

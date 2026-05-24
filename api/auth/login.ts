@@ -3,6 +3,7 @@ import {
   authStatus,
   createSessionToken,
   getAppPassword,
+  isBetterAuthEnabled,
   parseJsonBody,
   sessionCookieHeader,
   verifyPassword,
@@ -11,6 +12,12 @@ import {
 export default function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  if (isBetterAuthEnabled() && !getAppPassword()) {
+    return res.status(410).json({
+      error: 'Legacy password login disabled. Use Better Auth sign-in methods.',
+    });
   }
 
   if (!getAppPassword()) {

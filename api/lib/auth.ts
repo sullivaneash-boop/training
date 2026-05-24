@@ -2,6 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fromNodeHeaders } from 'better-auth/node';
+import { auth as betterAuth } from './betterAuth.js';
 
 const COOKIE_NAME = 'training_session';
 const SESSION_DAYS = 30;
@@ -39,6 +41,10 @@ export function getAppPassword(): string | undefined {
 
 export function isAuthEnabled(): boolean {
   return Boolean(getAppPassword());
+}
+
+export function isBetterAuthEnabled(): boolean {
+  return Boolean(process.env.BETTER_AUTH_SECRET && process.env.DATABASE_URL);
 }
 
 function getAuthSecret(): string {
@@ -124,10 +130,27 @@ export function isRequestAuthenticated(req: VercelRequest): boolean {
   return Boolean(token && verifySessionToken(token));
 }
 
+export async function getBetterAuthSession(req: VercelRequest) {
+  if (!isBetterAuthEnabled()) return null;
+  try {
+    return await betterAuth.api.getSession({
+      headers: fromNodeHeaders(req.headers),
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function isRequestAuthenticatedAny(req: VercelRequest): Promise<boolean> {
+  const betterSession = await getBetterAuthSession(req);
+  if (betterSession?.session && betterSession?.user) return true;
+  return isRequestAuthenticated(req);
+}
+
 /** Returns false and sends 401 if not allowed. */
-export function requireAuth(req: VercelRequest, res: VercelResponse): boolean {
-  if (!isAuthEnabled()) return true;
-  if (!isRequestAuthenticated(req)) {
+export async function requireAuth(req: VercelRequest, res: VercelResponse): Promise<boolean> {
+  if (!(isBetterAuthEnabled() || isAuthEnabled())) return true;
+  if (!(await isRequestAuthenticatedAny(req))) {
     res.status(401).json({ error: 'Unauthorized — sign in required' });
     return false;
   }
@@ -135,7 +158,7 @@ export function requireAuth(req: VercelRequest, res: VercelResponse): boolean {
 }
 
 export function authStatus(): { enabled: boolean; configured: boolean } {
-  const configured = Boolean(getAppPassword());
+  const configured = Boolean(getAppPassword()) || isBetterAuthEnabled();
   return { enabled: configured, configured };
 }
 

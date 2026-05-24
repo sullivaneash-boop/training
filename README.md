@@ -2,7 +2,7 @@
 
 Plan-agnostic training dashboard. Import any Markdown plan, log workouts locally, run readiness checks, and use **DeepSeek** as an optional coach layer.
 
-Local-first · No auth · No database · Vercel-deployable · Mobile-first PWA
+Local-first + Vercel API · Better Auth ready · Neon Postgres ready · Mobile-first PWA
 
 ## Stack
 
@@ -62,7 +62,29 @@ curl -X POST http://localhost:3000/api/deepseek \
 
 Production: replace host with your Vercel domain.
 
-## App login (protect API)
+## Auth setup (Better Auth + legacy fallback)
+
+Tempo now includes Better Auth route mounting at `/api/auth/*` for production-grade sessions.
+
+### Better Auth quick setup
+
+1. Add env vars:
+   - `BETTER_AUTH_SECRET` (32+ chars)
+   - `BETTER_AUTH_URL` (your app URL)
+   - `DATABASE_URL` (Neon Postgres)
+2. Run schema migration:
+   ```bash
+   npm run auth:migrate
+   ```
+   or generate SQL first:
+   ```bash
+   npm run auth:generate
+   ```
+3. Redeploy Vercel after updating env vars.
+
+When `DATABASE_URL` is set, email/password auth is enabled in Better Auth.
+
+### Legacy app password (temporary, for API protection while migrating)
 
 Stops strangers from hitting your DeepSeek API. No extra npm packages — cookie session on the server.
 
@@ -92,6 +114,7 @@ If `APP_PASSWORD` is **not** set, auth is off (convenient for local dev only).
 
 | Route | Purpose |
 |-------|---------|
+| `/api/auth/*` | Better Auth handler (session + provider routes) |
 | `/login` | Sign in |
 | `POST /api/auth/login` | Sets HttpOnly cookie |
 | `GET /api/auth/check` | Session check |

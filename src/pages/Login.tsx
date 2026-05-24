@@ -1,28 +1,75 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PrimaryButton } from '../components/PrimaryButton';
-import { login } from '../lib/auth';
+import { checkAuth, legacyLogin } from '../lib/auth';
+import { authClient } from '../lib/auth-client';
 import { loadOnboarding } from '../lib/storage';
 
 export function Login() {
   const navigate = useNavigate();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [legacyCode, setLegacyCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [showLegacyForm, setShowLegacyForm] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function routePostAuth() {
+    const check = await checkAuth();
+    if (!check.authenticated) {
+      setError('Sign-in completed but no session was found.');
+      return;
+    }
+    const onboarding = loadOnboarding();
+    navigate(onboarding.onboardingCompleted ? '/' : '/onboarding', { replace: true });
+  }
+
+  async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const result = await login(password);
+    const result = await authClient.signIn.email({
+      email,
+      password,
+      callbackURL: '/',
+    });
     setLoading(false);
-    if (result.ok) {
-      const onboarding = loadOnboarding();
-      navigate(onboarding.onboardingCompleted ? '/' : '/onboarding', { replace: true });
-    } else {
-      setError(result.error ?? 'Invalid password');
+    if ((result as { error?: { message?: string } }).error) {
+      setError((result as { error?: { message?: string } }).error?.message ?? 'Invalid credentials');
+      return;
     }
+    await routePostAuth();
+  }
+
+  async function handleLegacySubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    const result = await legacyLogin(legacyCode);
+    setLoading(false);
+    if (!result.ok) {
+      setError(result.error ?? 'Invalid access code');
+    } else {
+      await routePostAuth();
+    }
+  }
+
+  async function handleAppleSignIn() {
+    setError('');
+    setLoading(true);
+    const result = await authClient.signIn.social({
+      provider: 'apple',
+      callbackURL: '/',
+    });
+    setLoading(false);
+    const maybeUrl = (result as { data?: { url?: string }; url?: string }).data?.url ?? (result as { url?: string }).url;
+    if (maybeUrl) {
+      window.location.href = maybeUrl;
+      return;
+    }
+    const maybeErr = (result as { error?: { message?: string } }).error?.message;
+    setError(maybeErr ?? 'Apple sign-in is not configured yet.');
   }
 
   return (
@@ -35,32 +82,56 @@ export function Login() {
         <div className="mt-6 space-y-2.5">
           <button
             type="button"
-            onClick={() => setShowPassword(true)}
+            onClick={handleAppleSignIn}
+            disabled={loading}
             className="flex min-h-[50px] w-full items-center justify-center rounded-2xl border border-border bg-surface px-4 py-3 text-sm font-semibold text-foreground"
           >
             Continue with Apple
           </button>
           <button
             type="button"
-            onClick={() => setShowPassword(true)}
+            onClick={() => {
+              setShowEmailForm(true);
+              setShowLegacyForm(false);
+            }}
+            disabled={loading}
             className="flex min-h-[50px] w-full items-center justify-center rounded-2xl border border-border bg-surface px-4 py-3 text-sm font-semibold text-foreground"
           >
             Continue with email
           </button>
           <button
             type="button"
-            onClick={() => setShowPassword(true)}
+            onClick={() => {
+              setShowLegacyForm(true);
+              setShowEmailForm(false);
+            }}
+            disabled={loading}
             className="w-full rounded-xl px-3 py-1 text-sm font-medium text-muted underline"
           >
-            Sign in
+            Sign in with access code
           </button>
         </div>
 
-        {showPassword && (
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+        {showEmailForm && (
+          <form onSubmit={handleEmailSubmit} className="mt-6 space-y-4">
+            <div>
+              <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-muted">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full min-h-[48px] rounded-2xl border border-border bg-surface px-4 py-3 text-base text-foreground placeholder:text-neutral-400 focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
+                placeholder="you@example.com"
+                required
+              />
+            </div>
             <div>
               <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-muted">
-                Access code
+                Password
               </label>
               <input
                 id="password"
@@ -69,19 +140,43 @@ export function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full min-h-[48px] rounded-2xl border border-border bg-surface px-4 py-3 text-base text-foreground placeholder:text-neutral-400 focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
-                placeholder="Enter your app access code"
+                placeholder="Your password"
                 required
               />
             </div>
             {error && <p className="text-sm text-rose-600">{error}</p>}
-            <PrimaryButton type="submit" disabled={loading || !password}>
+            <PrimaryButton type="submit" disabled={loading || !email || !password}>
+              {loading ? 'Signing in…' : 'Continue'}
+            </PrimaryButton>
+          </form>
+        )}
+
+        {showLegacyForm && (
+          <form onSubmit={handleLegacySubmit} className="mt-6 space-y-4">
+            <div>
+              <label htmlFor="legacy-code" className="mb-1.5 block text-sm font-medium text-muted">
+                Legacy access code
+              </label>
+              <input
+                id="legacy-code"
+                type="password"
+                autoComplete="current-password"
+                value={legacyCode}
+                onChange={(e) => setLegacyCode(e.target.value)}
+                className="w-full min-h-[48px] rounded-2xl border border-border bg-surface px-4 py-3 text-base text-foreground placeholder:text-neutral-400 focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
+                placeholder="Enter legacy APP_PASSWORD code"
+                required
+              />
+            </div>
+            {error && <p className="text-sm text-rose-600">{error}</p>}
+            <PrimaryButton type="submit" disabled={loading || !legacyCode}>
               {loading ? 'Signing in…' : 'Continue'}
             </PrimaryButton>
           </form>
         )}
 
         <p className="mt-6 text-center text-xs text-muted">
-          Password is stored server-side and never committed to this repo.
+          Better Auth manages your session. Legacy access code remains available while migrating.
         </p>
       </div>
     </div>
