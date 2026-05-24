@@ -14,6 +14,40 @@ type ToastItem = {
   level: ToastLevel;
 };
 
+type AuthResultError = {
+  message?: string;
+  status?: number;
+  statusText?: string;
+  code?: string;
+};
+
+function readAuthError(err: AuthResultError | undefined, mode: 'sign_in' | 'sign_up'): string | undefined {
+  if (!err) return undefined;
+  const message = err.message?.trim();
+  if (message) return message;
+
+  const code = (err.code ?? '').toLowerCase();
+  const statusText = (err.statusText ?? '').toLowerCase();
+
+  if (err.status === 403 || code.includes('disable') || statusText.includes('forbidden')) {
+    return mode === 'sign_up'
+      ? 'New account creation is currently disabled. Ask support to enable signups.'
+      : 'Sign-in is currently restricted. Please try again in a moment.';
+  }
+  if (err.status === 409 || code.includes('exists')) {
+    return 'An account with this email already exists. Try signing in instead.';
+  }
+  if (err.status === 422 || err.status === 400 || code.includes('invalid')) {
+    return mode === 'sign_up'
+      ? 'Please enter a valid email and a password with at least 8 characters.'
+      : 'Please check your email and password and try again.';
+  }
+  if (err.status && err.status >= 500) {
+    return 'Auth service is temporarily unavailable. Please try again shortly.';
+  }
+  return undefined;
+}
+
 export function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -55,30 +89,48 @@ export function Login() {
   async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    if (authMode === 'sign_up' && password.length < 8) {
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedPassword = password.trim();
+    const trimmedName = name.trim();
+
+    if (authMode === 'sign_up' && trimmedPassword.length < 8) {
       reportIssue('Use at least 8 characters for your password so your account stays secure.');
       return;
     }
+    if (!trimmedEmail) {
+      reportIssue('Enter a valid email address.');
+      return;
+    }
+
     setLoading(true);
-    const inferredNameFromEmail = email.split('@')[0]?.trim();
-    const signUpName = name.trim() || inferredNameFromEmail || 'Tempo Athlete';
-    const result =
-      authMode === 'sign_up'
-        ? await authClient.signUp.email({
-            email,
-            password,
-            name: signUpName,
-            callbackURL: '/',
-          })
-        : await authClient.signIn.email({
-            email,
-            password,
-            callbackURL: '/',
-          });
+    const inferredNameFromEmail = trimmedEmail.split('@')[0]?.trim();
+    const signUpName = trimmedName || inferredNameFromEmail || 'Tempo Athlete';
+
+    let result:
+      | Awaited<ReturnType<typeof authClient.signUp.email>>
+      | Awaited<ReturnType<typeof authClient.signIn.email>>;
+    try {
+      result =
+        authMode === 'sign_up'
+          ? await authClient.signUp.email({
+              email: trimmedEmail,
+              password: trimmedPassword,
+              name: signUpName,
+            })
+          : await authClient.signIn.email({
+              email: trimmedEmail,
+              password: trimmedPassword,
+            });
+    } catch {
+      setLoading(false);
+      reportIssue('Auth request failed before reaching the server. Please try again.', 'error');
+      return;
+    }
     setLoading(false);
-    if ((result as { error?: { message?: string } }).error) {
+    if ((result as { error?: AuthResultError }).error) {
+      const authError = (result as { error?: AuthResultError }).error;
       const message =
-        (result as { error?: { message?: string } }).error?.message ??
+        readAuthError(authError, authMode) ??
         (authMode === 'sign_up'
           ? 'We could not create your account. Check your details and try again.'
           : 'Those details did not match. Try again.');
