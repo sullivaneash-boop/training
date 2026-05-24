@@ -398,7 +398,7 @@ export function Onboarding() {
             ))}
           </div>
           <div className="space-y-1.5">
-            <p className="text-xs font-semibold uppercase tracking-[0.06em] text-muted">Add detail</p>
+            <p className="section-label">Add detail</p>
             <Textarea
               value={draft.rawGoalInput ?? ''}
               onChange={(e) => commit({ rawGoalInput: e.target.value })}
@@ -418,7 +418,7 @@ export function Onboarding() {
       {step === 'starting_point' && (
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">
+            <p className="section-label">
               Starting point {startingIndex + 1}/5
             </p>
             <div className="flex gap-1.5">
@@ -587,7 +587,7 @@ export function Onboarding() {
 
           <Card className="space-y-3 rounded-[22px]">
             <div>
-              <p className="text-lg font-semibold text-foreground">
+              <p className="app-heading text-lg text-foreground">
                 {draft.eventName ?? draft.generatedPlanName ?? plan?.name ?? 'Your training goal'}
               </p>
               <p className="text-sm text-muted">{totalWeeks}-week controlled build</p>
@@ -749,7 +749,7 @@ export function Onboarding() {
         <div className="space-y-4 py-4">
           <PageHeader title="Today's briefing" />
           <Card className="space-y-1 rounded-[22px] border-accent/30 bg-[#e8f4ee]">
-            <p className="text-lg font-semibold text-foreground">Week 1 starts today.</p>
+            <p className="app-heading text-lg text-foreground">Week 1 starts today.</p>
             <p className="text-sm text-muted">
               Your first block is focused on consistency, easy aerobic work, and recovery spacing.
             </p>

@@ -32,7 +32,7 @@ export function ActionCard({
           </span>
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-[15px] font-semibold text-foreground">{title}</p>
+          <p className="app-heading text-[15px] text-foreground">{title}</p>
           <p className="mt-1 text-sm text-muted">{description}</p>
         </div>
         <span className="shrink-0 text-sm font-medium text-accent">{actionLabel} →</span>

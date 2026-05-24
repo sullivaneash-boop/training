@@ -295,7 +295,7 @@ export function PlanAssistantChat() {
           <header className="flex shrink-0 items-start justify-between border-b border-border px-4 py-3">
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-semibold text-foreground">Tempo Assistant</h2>
+                <h2 className="app-heading text-base text-foreground">Tempo Assistant</h2>
                 <span className="h-2 w-2 rounded-full bg-accent/75" aria-label="AI enabled" />
               </div>
               <p className="text-xs text-muted">Shift dates · adjust volume · fix schedule</p>

@@ -12,7 +12,7 @@ export function MetricCard({
   return (
     <div className={`flex flex-col gap-0.5 ${className}`}>
       <span className="text-xs font-medium text-muted">{label}</span>
-      <span className="text-3xl font-semibold tabular-nums tracking-tight text-foreground">{value}</span>
+      <span className="text-3xl font-semibold tabular-nums text-foreground">{value}</span>
       {sub && <span className="text-sm text-muted">{sub}</span>}
     </div>
   );

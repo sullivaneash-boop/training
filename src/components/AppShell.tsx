@@ -9,7 +9,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="flex h-6 w-6 items-center justify-center rounded-full border border-accent/35 bg-surface">
             <span className="h-2.5 w-2.5 rounded-full border-2 border-accent border-r-transparent border-t-transparent" />
           </span>
-          <span className="text-sm font-semibold tracking-[0.12em] text-foreground">TEMPO</span>
+          <span className="tempo-wordmark text-sm text-foreground">Tempo</span>
         </Link>
       </div>
       {children}

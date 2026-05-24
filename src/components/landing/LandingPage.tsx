@@ -133,7 +133,7 @@ function TempoWordmark() {
           className="h-10 w-10 rounded-[8px] shadow-[0_10px_24px_rgba(20,35,48,0.16)]"
         />
         <div>
-          <p className="text-sm font-semibold text-[#181a1b]">Tempo</p>
+          <p className="tempo-wordmark text-sm text-[#181a1b]">Tempo</p>
           <p className="text-xs font-medium text-[#68737f]">AI training coach</p>
         </div>
       </div>
@@ -148,7 +148,7 @@ function HeroCopy() {
   return (
     <section className="relative space-y-4 pt-3">
       <div className="space-y-3">
-        <h1 className="text-[4.15rem] font-semibold leading-[0.9] text-[#151a1f]">Tempo</h1>
+        <h1 className="tempo-wordmark text-[4.15rem] leading-[0.9] text-[#151a1f]">Tempo</h1>
         <p className="max-w-[34ch] text-[1.08rem] leading-relaxed text-[#5e6670]">
           Paste your race, event, link, or training notes. Tempo builds the plan,
           tracks the work, and adjusts your week around sleep, stress, soreness,
@@ -248,7 +248,7 @@ function ProductPreview({
           <div className="flex items-center justify-between border-b border-[#e4e8e0] bg-white px-4 py-3">
             <div>
               <p className="text-[0.7rem] font-semibold text-[#68737f]">Plan builder</p>
-              <p className="text-sm font-semibold text-[#1d2832]">Your next block</p>
+              <p className="app-heading text-sm text-[#1d2832]">Your next block</p>
             </div>
             <div className={`rounded-[8px] border px-2.5 py-1 text-[0.68rem] font-semibold ${toneClasses[scenario.tone]}`}>
               Live
@@ -264,7 +264,7 @@ function ProductPreview({
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
             >
               <p className="text-[0.68rem] font-semibold text-[#68737f]">{scenario.label}</p>
-              <p className="mt-1 text-[0.88rem] font-semibold leading-snug text-[#202b36]">
+              <p className="app-heading mt-1 text-[0.88rem] leading-snug text-[#202b36]">
                 {scenario.input}
               </p>
             </motion.div>
@@ -273,7 +273,7 @@ function ProductPreview({
               <div className="mb-3 flex items-center justify-between">
                 <div>
                   <p className="text-[0.68rem] font-semibold text-[#68737f]">Generated plan</p>
-                  <p className="text-[0.86rem] font-semibold text-[#202b36]">{scenario.output}</p>
+                  <p className="app-heading text-[0.86rem] text-[#202b36]">{scenario.output}</p>
                 </div>
                 <span className="text-[0.72rem] font-semibold text-[#2e8b6d]">16 wk</span>
               </div>
@@ -282,7 +282,7 @@ function ProductPreview({
 
             <div className="rounded-[8px] border border-[#e0e6df] bg-white p-3">
               <div className="mb-3 flex items-center justify-between">
-                <p className="text-[0.78rem] font-semibold text-[#202b36]">This week</p>
+                <p className="app-heading text-[0.78rem] text-[#202b36]">This week</p>
                 <p className="text-[0.68rem] font-semibold text-[#68737f]">Adjusted</p>
               </div>
               <TrainingWeek scenario={scenario} />
@@ -296,7 +296,7 @@ function ProductPreview({
               transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
             >
               <p className="text-[0.68rem] font-semibold">Coach note</p>
-              <p className="mt-1 text-[0.85rem] font-semibold leading-snug">{scenario.coach}</p>
+              <p className="app-heading mt-1 text-[0.85rem] leading-snug">{scenario.coach}</p>
             </motion.div>
           </div>
         </div>
@@ -362,7 +362,7 @@ function ScenarioSelector({
               active ? toneClasses[scenario.tone] : 'border-[#e1e6df] bg-white text-[#33404c]'
             }`}
           >
-            <p className="text-[0.78rem] font-semibold">{scenario.label}</p>
+            <p className="app-heading text-[0.78rem]">{scenario.label}</p>
             <p className="mt-1 text-[0.72rem] leading-snug opacity-80">{scenario.output}</p>
           </button>
         );
@@ -385,7 +385,7 @@ function FlowStep({
       <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-[8px] bg-[#133046] text-sm font-semibold text-white">
         {number}
       </div>
-      <p className="text-[1rem] font-semibold text-[#1d2832]">{title}</p>
+      <p className="app-heading text-[1rem] text-[#1d2832]">{title}</p>
       <p className="mt-1.5 text-[0.86rem] leading-relaxed text-[#5b6671]">{body}</p>
     </div>
   );
@@ -395,8 +395,8 @@ function HowItWorks() {
   return (
     <section className="relative space-y-3">
       <div>
-        <p className="text-sm font-semibold text-[#2e8b6d]">From goal to daily guidance</p>
-        <h2 className="mt-1 text-[1.85rem] font-semibold leading-tight text-[#151a1f]">
+        <p className="app-heading text-sm uppercase text-[#2e8b6d]">From goal to daily guidance</p>
+        <h2 className="app-heading mt-1 text-[1.85rem] leading-tight text-[#151a1f]">
           The plan starts custom and stays alive.
         </h2>
       </div>
@@ -432,15 +432,15 @@ function SignalGrid() {
   return (
     <section className="space-y-3">
       <div>
-        <p className="text-sm font-semibold text-[#2e8b6d]">Personal context</p>
-        <h2 className="mt-1 text-[1.85rem] font-semibold leading-tight text-[#151a1f]">
+        <p className="app-heading text-sm uppercase text-[#2e8b6d]">Personal context</p>
+        <h2 className="app-heading mt-1 text-[1.85rem] leading-tight text-[#151a1f]">
           More than a workout calendar.
         </h2>
       </div>
       <div className="grid grid-cols-2 gap-2">
         {signals.map(([title, body]) => (
           <div key={title} className="rounded-[8px] border border-[#e1e6df] bg-white p-3">
-            <p className="text-[0.9rem] font-semibold text-[#202b36]">{title}</p>
+            <p className="app-heading text-[0.9rem] text-[#202b36]">{title}</p>
             <p className="mt-1 text-[0.74rem] leading-relaxed text-[#5f6a75]">{body}</p>
           </div>
         ))}
@@ -452,7 +452,7 @@ function SignalGrid() {
 function FinalCta({ onGetStarted }: { onGetStarted: () => void }) {
   return (
     <section className="rounded-[8px] border border-[#dce5dd] bg-[#133046] p-5 text-white shadow-[0_18px_40px_rgba(19,48,70,0.22)]">
-      <p className="text-[1.55rem] font-semibold leading-tight">Start with the race you care about.</p>
+      <p className="app-heading text-[1.55rem] leading-tight">Start with the race you care about.</p>
       <p className="mt-2 text-sm leading-relaxed text-[#d7e0dc]">
         Tempo turns the details into a plan, then keeps coaching you through the messy weeks.
       </p>

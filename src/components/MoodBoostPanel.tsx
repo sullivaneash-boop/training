@@ -112,7 +112,7 @@ export function MoodBoostPanel() {
   return (
     <div className="space-y-4 rounded-xl border border-border bg-surface p-4 shadow-sm">
       <div>
-        <h2 className="text-lg font-semibold text-foreground">Mood boost</h2>
+        <h2 className="app-heading text-lg text-foreground">Mood boost</h2>
         <p className="mt-1 text-sm text-muted">
           Quick check-in on how you&apos;re feeling — then music, videos, and quotes to reset.
         </p>

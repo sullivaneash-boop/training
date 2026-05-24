@@ -215,7 +215,7 @@ export function Login() {
             ref={authPanelRef}
             className="mt-8 rounded-3xl border border-border bg-surface p-6 shadow-[0_10px_32px_rgba(19,48,70,0.08)]"
           >
-            <p className="text-sm font-semibold tracking-[0.14em] text-muted">ACCOUNT</p>
+            <p className="section-label">Account</p>
             <p className="mt-1 text-sm text-muted">Choose a sign-in method to continue your setup.</p>
 
             <div className="mt-6 space-y-2.5">

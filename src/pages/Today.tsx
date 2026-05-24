@@ -46,7 +46,7 @@ export function Today() {
     return (
       <div className="space-y-6 py-4">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Today</h1>
+          <h1 className="app-heading text-2xl text-foreground">Today</h1>
           <p className="mt-2 text-sm text-muted">
             Import your plan to generate a clear daily brief.
           </p>
@@ -159,15 +159,15 @@ export function Today() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-muted">{dayName}</p>
-            {activationPending && <p className="text-xs font-semibold uppercase tracking-[0.1em] text-accent">Today&apos;s briefing</p>}
-            <h1 className="text-[30px] font-semibold tracking-tight text-foreground">
+            {activationPending && <p className="app-heading text-xs uppercase text-accent">Today&apos;s briefing</p>}
+            <h1 className="app-heading text-[30px] text-foreground">
               Week {weekNum}
               <span className="text-2xl font-normal text-muted"> / {totalWeeks}</span>
             </h1>
           </div>
           {daysLeft != null && daysLeft > 0 && (
             <div className="rounded-2xl border border-border bg-surface px-3 py-2 text-right shadow-[0_1px_2px_rgba(17,24,39,0.04)]">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-muted">Race</p>
+              <p className="text-[11px] font-medium uppercase text-muted">Race</p>
               <p className="text-xl font-semibold tabular-nums text-foreground">{daysLeft}</p>
               <p className="text-xs text-muted">days out</p>
             </div>
@@ -177,7 +177,7 @@ export function Today() {
 
       {activationPending && (
         <Card className="space-y-3 border-accent/30 bg-[#e8f4ee]">
-          <p className="text-xl font-semibold text-foreground">Your plan starts today</p>
+          <p className="app-heading text-xl text-foreground">Your plan starts today</p>
           <p className="text-sm text-muted">
             Start Week 1 to activate daily guidance and keep the first block structured.
           </p>
@@ -200,7 +200,7 @@ export function Today() {
         <p className="section-label">Today command</p>
         <Card className="space-y-3.5 border-accent/30 p-[18px] shadow-[0_12px_24px_rgba(46,142,109,0.09)]">
           <div className="flex items-start justify-between gap-3">
-            <span className="inline-flex rounded-lg bg-[#e8f4ee] px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-accent">
+            <span className="inline-flex rounded-lg bg-[#e8f4ee] px-2.5 py-1 text-xs font-semibold uppercase text-accent">
               {workout.sport}
             </span>
             {workout.duration && (
@@ -211,7 +211,7 @@ export function Today() {
           </div>
 
           <div className="space-y-1.5">
-            <p className="text-[25px] font-semibold leading-tight text-foreground">Today: {workout.title}</p>
+            <p className="app-heading text-[25px] leading-tight text-foreground">Today: {workout.title}</p>
             <p className="text-sm text-muted">{workout.focus}</p>
             {workout.meta && <p className="text-xs font-medium text-muted">{workout.meta}</p>}
           </div>
@@ -291,15 +291,15 @@ export function Today() {
           <Card className="space-y-3">
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <p className="text-[11px] uppercase tracking-wide text-muted">Weekly target</p>
+                <p className="text-[11px] uppercase text-muted">Weekly target</p>
                 <p className="mt-1 text-sm font-semibold text-foreground">{weekPlan.targetHours ?? 0} hrs</p>
               </div>
               <div>
-                <p className="text-[11px] uppercase tracking-wide text-muted">Completed</p>
+                <p className="text-[11px] uppercase text-muted">Completed</p>
                 <p className="mt-1 text-sm font-semibold text-foreground">{weeklyStats.completedHours} hrs</p>
               </div>
               <div>
-                <p className="text-[11px] uppercase tracking-wide text-muted">Sessions</p>
+                <p className="text-[11px] uppercase text-muted">Sessions</p>
                 <p className="mt-1 text-sm font-semibold text-foreground">
                   {completedSessions}/{plannedSessions || '—'}
                 </p>

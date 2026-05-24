@@ -63,7 +63,7 @@ export function CoachPanel({
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-xs font-medium text-muted">{response.mode.replace(/_/g, ' ')}</p>
-          <p className={`text-xs font-bold uppercase tracking-[0.12em] ${signalColor(response.signal)}`}>
+          <p className={`app-heading text-xs uppercase ${signalColor(response.signal)}`}>
             {response.signal}
           </p>
         </div>
