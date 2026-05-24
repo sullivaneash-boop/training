@@ -5,6 +5,14 @@ import { checkAuth, legacyLogin } from '../lib/auth';
 import { authClient } from '../lib/auth-client';
 import { loadOnboarding } from '../lib/storage';
 
+type ToastLevel = 'warning' | 'error';
+
+type ToastItem = {
+  id: number;
+  message: string;
+  level: ToastLevel;
+};
+
 export function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -16,11 +24,25 @@ export function Login() {
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [showLegacyForm, setShowLegacyForm] = useState(false);
   const [authMode, setAuthMode] = useState<'sign_in' | 'sign_up'>('sign_in');
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  function pushToast(message: string, level: ToastLevel = 'warning') {
+    const id = Date.now() + Math.floor(Math.random() * 1000);
+    setToasts((items) => [...items, { id, message, level }]);
+    window.setTimeout(() => {
+      setToasts((items) => items.filter((item) => item.id !== id));
+    }, 4200);
+  }
+
+  function reportIssue(message: string, level: ToastLevel = 'warning') {
+    setError(message);
+    pushToast(message, level);
+  }
 
   async function routePostAuth() {
     const check = await checkAuth();
     if (!check.authenticated) {
-      setError('Sign-in completed but no session was found.');
+      reportIssue('Almost there — we could not find your session. Please try again.', 'error');
       return;
     }
     const onboarding = loadOnboarding();
@@ -30,13 +52,19 @@ export function Login() {
   async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    if (authMode === 'sign_up' && password.length < 8) {
+      reportIssue('Use at least 8 characters for your password so your account stays secure.');
+      return;
+    }
     setLoading(true);
+    const inferredNameFromEmail = email.split('@')[0]?.trim();
+    const signUpName = name.trim() || inferredNameFromEmail || 'Tempo Athlete';
     const result =
       authMode === 'sign_up'
         ? await authClient.signUp.email({
             email,
             password,
-            name: name.trim(),
+            name: signUpName,
             callbackURL: '/',
           })
         : await authClient.signIn.email({
@@ -46,7 +74,12 @@ export function Login() {
           });
     setLoading(false);
     if ((result as { error?: { message?: string } }).error) {
-      setError((result as { error?: { message?: string } }).error?.message ?? 'Invalid credentials');
+      const message =
+        (result as { error?: { message?: string } }).error?.message ??
+        (authMode === 'sign_up'
+          ? 'We could not create your account. Check your details and try again.'
+          : 'Those details did not match. Try again.');
+      reportIssue(message, 'error');
       return;
     }
     await routePostAuth();
@@ -59,7 +92,7 @@ export function Login() {
     const result = await legacyLogin(legacyCode);
     setLoading(false);
     if (!result.ok) {
-      setError(result.error ?? 'Invalid access code');
+      reportIssue(result.error ?? 'That access code did not work. Please try again.', 'error');
     } else {
       await routePostAuth();
     }
@@ -79,11 +112,25 @@ export function Login() {
       return;
     }
     const maybeErr = (result as { error?: { message?: string } }).error?.message;
-    setError(maybeErr ?? 'Apple sign-in is not configured yet.');
+    reportIssue(maybeErr ?? 'Apple sign-in is not configured yet. Use email for now.', 'warning');
   }
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-6">
+      <div className="pointer-events-none fixed inset-x-0 top-4 z-50 mx-auto flex w-full max-w-sm flex-col gap-2 px-4">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`rounded-2xl border px-4 py-3 text-sm font-medium shadow-[0_8px_24px_rgba(19,48,70,0.16)] backdrop-blur-sm ${
+              toast.level === 'error'
+                ? 'border-rose-200 bg-rose-50/95 text-rose-700'
+                : 'border-amber-200 bg-amber-50/95 text-amber-800'
+            }`}
+          >
+            {toast.message}
+          </div>
+        ))}
+      </div>
       <div className="w-full max-w-sm rounded-3xl border border-border bg-surface p-6 shadow-[0_10px_32px_rgba(19,48,70,0.08)]">
         <p className="text-xs font-semibold tracking-[0.16em] text-muted">TEMPO</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">Account</h1>
@@ -175,14 +222,18 @@ export function Login() {
               <input
                 id="password"
                 type="password"
-                autoComplete="current-password"
+                autoComplete={authMode === 'sign_up' ? 'new-password' : 'current-password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full min-h-[48px] rounded-2xl border border-border bg-surface px-4 py-3 text-base text-foreground placeholder:text-neutral-400 focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
                 placeholder="Your password"
+                minLength={authMode === 'sign_up' ? 8 : undefined}
                 required
               />
             </div>
+            {authMode === 'sign_up' && (
+              <p className="text-xs text-muted">Use at least 8 characters.</p>
+            )}
             {error && <p className="text-sm text-rose-600">{error}</p>}
             <PrimaryButton type="submit" disabled={loading || !email || !password}>
               {loading
