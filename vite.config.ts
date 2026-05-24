@@ -9,7 +9,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.svg'],
+      includeAssets: ['favicon-16.png', 'favicon-32.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Tempo',
         short_name: 'Tempo',
