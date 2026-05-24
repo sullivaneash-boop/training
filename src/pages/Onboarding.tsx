@@ -4,7 +4,12 @@ import { Card } from '../components/Card';
 import { PageHeader } from '../components/PageHeader';
 import { Button, Input, Textarea } from '../components/FormField';
 import { useTrainingData } from '../hooks/useTrainingData';
+import { callDeepSeek } from '../lib/deepseek';
+import { createFallbackPlanFromOnboarding } from '../lib/onboardingPlan';
+import { syncUserBootstrap } from '../lib/userSync';
 import type {
+  AthleteGoal,
+  AthleteProfile,
   ConstraintType,
   CurrentTrainingFrequency,
   FirstBlockMode,
@@ -118,6 +123,22 @@ function modeLabel(mode: FirstBlockMode): string {
   return 'Balanced';
 }
 
+function athleteGoalFromOnboarding(onboarding: OnboardingState): AthleteGoal {
+  if (onboarding.goalType === 'race_event') {
+    return onboarding.firstBlockMode === 'aggressive' ? 'pr' : 'finish_strong';
+  }
+  if (onboarding.goalType === 'hybrid_training' || onboarding.goalType === 'general_fitness') {
+    return 'finish_strong';
+  }
+  return 'finish';
+}
+
+function weeklyHoursFromAvailability(availability?: WeeklyAvailability): number | undefined {
+  if (!availability) return undefined;
+  if (availability === '6_plus') return 8;
+  return Number(availability) * 1.5;
+}
+
 function makePhaseModel(totalWeeks: number) {
   if (totalWeeks === 21) {
     return [
@@ -166,12 +187,21 @@ function ChoiceButton({
 
 export function Onboarding() {
   const navigate = useNavigate();
-  const { onboarding, updateOnboarding, plan } = useTrainingData();
+  const {
+    onboarding,
+    updateOnboarding,
+    plan,
+    athlete,
+    updatePlan,
+    updateAthlete,
+    settings,
+  } = useTrainingData();
   const [step, setStep] = useState<Step>('welcome');
   const [startingIndex, setStartingIndex] = useState(0);
   const [previewWeek, setPreviewWeek] = useState(false);
   const [buildProgress, setBuildProgress] = useState(0);
   const [draft, setDraft] = useState<OnboardingState>(onboarding);
+  const [generationIssue, setGenerationIssue] = useState<string | null>(null);
 
   const buildingItems = useMemo(() => {
     const items = [
@@ -187,23 +217,81 @@ export function Onboarding() {
 
   useEffect(() => {
     if (step !== 'building_plan_briefing') return;
+    let cancelled = false;
     setBuildProgress(0);
     const interval = setInterval(() => {
       setBuildProgress((v) => Math.min(buildingItems.length, v + 1));
     }, 350);
-    const done = setTimeout(() => {
+
+    const generate = async () => {
+      const inferredAthlete: AthleteProfile = {
+        id: athlete?.id ?? 'athlete-1',
+        goal: athleteGoalFromOnboarding(draft),
+        currentRace: draft.eventName,
+        weeklyHoursAvailable:
+          weeklyHoursFromAvailability(draft.weeklyAvailability) ?? athlete?.weeklyHoursAvailable,
+        injuryNotes: draft.injuryNotes ?? athlete?.injuryNotes,
+      };
+
+      let generatedPlan = null;
+      let generatedAthlete: AthleteProfile | undefined = inferredAthlete;
+      try {
+        const result = await callDeepSeek(
+          {
+            mode: 'onboarding_plan',
+            onboarding: draft,
+            athleteProfile: inferredAthlete,
+          },
+          settings.deepseekModel,
+        );
+        generatedPlan = result.plan ?? createFallbackPlanFromOnboarding(draft);
+        generatedAthlete = result.athleteProfile
+          ? { ...inferredAthlete, ...result.athleteProfile, id: inferredAthlete.id }
+          : inferredAthlete;
+      } catch (error) {
+        generatedPlan = createFallbackPlanFromOnboarding(draft);
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Could not generate a full custom plan from AI, using adaptive fallback.';
+        setGenerationIssue(message);
+      }
+
+      if (cancelled) return;
+
+      updatePlan(generatedPlan);
+      if (generatedAthlete) {
+        updateAthlete(generatedAthlete);
+      }
       setDraft((prev) => ({
         ...prev,
-        generatedPlanName: prev.generatedPlanName ?? plan?.name ?? 'Tempo Plan Briefing',
-        generatedAt: prev.generatedAt ?? new Date().toISOString(),
+        eventName: prev.eventName ?? generatedPlan?.raceName,
+        generatedPlanName: generatedPlan?.name ?? prev.generatedPlanName ?? 'Tempo Plan Briefing',
+        generatedAt: new Date().toISOString(),
       }));
       setStep('plan_briefing');
-    }, 2200);
+    };
+
+    const done = setTimeout(() => {
+      void generate();
+    }, 700);
+
     return () => {
+      cancelled = true;
       clearInterval(interval);
       clearTimeout(done);
     };
-  }, [buildingItems.length, plan?.name, step]);
+  }, [
+    athlete?.id,
+    athlete?.injuryNotes,
+    athlete?.weeklyHoursAvailable,
+    buildingItems.length,
+    draft,
+    settings.deepseekModel,
+    step,
+    updateAthlete,
+    updatePlan,
+  ]);
 
   const currentWeek = useMemo(() => plan?.weeks?.[0], [plan]);
   const totalWeeks = plan?.totalWeeks ?? plan?.weeks?.length ?? 21;
@@ -240,16 +328,25 @@ export function Onboarding() {
     setStartingIndex(0);
   }
 
-  function finishOnboarding(path = '/') {
+  async function finishOnboarding(path = '/') {
     const finalState: OnboardingState = {
       ...draft,
       onboardingCompleted: true,
       activePlanCreated: true,
-      generatedPlanName: draft.generatedPlanName ?? plan?.name ?? 'Tempo Plan Briefing',
+      generatedPlanName: draft.generatedPlanName ?? plan?.name ?? 'Tempo Plan',
       generatedAt: draft.generatedAt ?? new Date().toISOString(),
     };
     setDraft(finalState);
     updateOnboarding(finalState);
+    try {
+      await syncUserBootstrap({
+        onboarding: finalState,
+        athleteProfile: athlete ?? undefined,
+        plan,
+      });
+    } catch {
+      // Non-blocking sync: user should still enter the app.
+    }
     navigate(path, { replace: true });
   }
 
@@ -449,7 +546,10 @@ export function Onboarding() {
               type="button"
               onClick={() => {
                 if (startingIndex < 4) setStartingIndex((v) => v + 1);
-                else setStep('building_plan_briefing');
+                else {
+                  setGenerationIssue(null);
+                  setStep('building_plan_briefing');
+                }
               }}
             >
               {startingIndex < 4 ? 'Continue' : 'Build plan briefing'}
@@ -477,6 +577,7 @@ export function Onboarding() {
           {!draft.healthConnected && (
             <p className="text-xs text-muted">Health data can be connected after review.</p>
           )}
+          {generationIssue && <p className="text-xs text-amber-700">{generationIssue}</p>}
         </div>
       )}
 
@@ -672,14 +773,14 @@ export function Onboarding() {
               </p>
             </Card>
           )}
-          <Button type="button" onClick={() => finishOnboarding('/')}>
+          <Button type="button" onClick={() => void finishOnboarding('/')}>
             Start Week 1
           </Button>
           <div className="grid grid-cols-2 gap-2">
-            <Button type="button" variant="ghost" onClick={() => finishOnboarding('/')}>
+            <Button type="button" variant="ghost" onClick={() => void finishOnboarding('/')}>
               Adjust today
             </Button>
-            <Button type="button" variant="ghost" onClick={() => finishOnboarding('/coach')}>
+            <Button type="button" variant="ghost" onClick={() => void finishOnboarding('/coach')}>
               Ask Tempo
             </Button>
           </div>

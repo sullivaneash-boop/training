@@ -129,6 +129,7 @@ export type DeepSeekModel = 'deepseek-v4-flash' | 'deepseek-v4-pro';
 
 export type DeepSeekMode =
   | 'normalize_plan'
+  | 'onboarding_plan'
   | 'daily_debrief'
   | 'readiness_explain'
   | 'missed_workout_fix'
@@ -182,6 +183,7 @@ export type DeepSeekRequest = {
   mode: DeepSeekMode;
   plan?: TrainingPlan;
   rawMarkdown?: string;
+  onboarding?: OnboardingState;
   athleteProfile?: AthleteProfile;
   workoutLogs?: WorkoutLog[];
   readinessChecks?: ReadinessCheck[];
@@ -207,6 +209,7 @@ export type PlanPatch = {
 export type DeepSeekApiResponse = {
   coach: CoachResponse;
   plan?: TrainingPlan;
+  athleteProfile?: AthleteProfile;
   planPatch?: PlanPatch;
   assistantMessage?: string;
   motivationalLinks?: MotivationalLink[];

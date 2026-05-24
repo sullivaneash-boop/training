@@ -222,11 +222,11 @@ export function TodayBriefingCard() {
         Why this: Recovery is strong. Load is in range. Sleep was solid.
       </p>
 
-      <div className="mt-3 grid grid-cols-4 gap-1.5">
-        <MetricChip label="Sleep" value="7h 42m" />
-        <MetricChip label="HRV" value="Stable" />
-        <MetricChip label="Load" value="Optimal" />
-        <MetricChip label="Recovery" value="78%" />
+      <div className="mt-3 grid grid-cols-2 gap-1.5">
+        <MetricChip label="Coach focus" value="Aerobic quality" />
+        <MetricChip label="Plan state" value="Tailored today" />
+        <MetricChip label="Adjustment" value="Ease if sore" />
+        <MetricChip label="Weekly guide" value="Auto-updated" />
       </div>
 
       <MiniTrendChart />
@@ -241,7 +241,8 @@ export function TodayBriefingCard() {
           Coach note
         </p>
         <p className="mt-1 text-[0.84rem] text-[#293340]">
-          Good day for quality work. Keep it aerobic unless soreness is high.
+          Good day for quality work. Keep it aerobic unless soreness is high. I can adjust
+          instantly if your legs feel heavy during warm-up.
         </p>
       </motion.div>
     </motion.div>
@@ -284,7 +285,8 @@ export function CoachPreviewCard() {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.7 }}
         >
-          You&apos;re trending well. Want me to adjust this week around your long run?
+          I built this week around your recent consistency and recovery trend. Want me to tune
+          tomorrow if soreness increases tonight?
         </motion.p>
       </motion.div>
 
@@ -346,9 +348,24 @@ function BackgroundSignalCard({
 export function ProductPreview() {
   return (
     <div className="relative space-y-3 overflow-visible">
-      <BackgroundSignalCard title="Sleep" value="7h 42m" className="-left-4 top-20 w-24" delay={0.1} />
-      <BackgroundSignalCard title="Load" value="Optimal" className="-right-3 top-10 w-24" delay={0.2} />
-      <BackgroundSignalCard title="HRV" value="Stable" className="-right-2 bottom-20 w-24" delay={0.35} />
+      <BackgroundSignalCard
+        title="Adjust today"
+        value="Shift intensity"
+        className="-left-6 top-20 w-28"
+        delay={0.1}
+      />
+      <BackgroundSignalCard
+        title="Explain why"
+        value="Clear rationale"
+        className="-right-4 top-10 w-28"
+        delay={0.2}
+      />
+      <BackgroundSignalCard
+        title="Plan week"
+        value="Auto-tailored"
+        className="-right-3 bottom-20 w-28"
+        delay={0.35}
+      />
       <TodayBriefingCard />
       <CoachPreviewCard />
     </div>
@@ -447,14 +464,17 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
       </MotionReveal>
 
       <div ref={featuresRef} className="grid grid-cols-3 gap-2">
-        <FeaturePill title="Today's guidance" description="Know whether to push, recover, or maintain." />
         <FeaturePill
-          title="Adaptive coach"
-          description="Ask why, adjust plans, and get clearer next steps."
+          title="Coaching tools"
+          description="Adjust today, ask why, and tune your week in seconds."
+        />
+        <FeaturePill
+          title="Tailored guides"
+          description="Daily training guidance generated from your real recent context."
         />
         <FeaturePill
           title="Apple Health sync"
-          description="No manual workout logging required."
+          description="Signals sync automatically so guidance stays personal and current."
         />
       </div>
 

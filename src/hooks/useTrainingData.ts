@@ -11,7 +11,6 @@ import type {
 import {
   loadAthlete,
   loadCoachInsights,
-  loadDefaultPlan,
   loadPlan,
   loadReadiness,
   loadSettings,
@@ -52,12 +51,7 @@ export function useTrainingData() {
 
   useEffect(() => {
     async function init() {
-      let p = loadPlan();
-      if (!p) {
-        p = await loadDefaultPlan();
-        if (p) savePlan(p);
-      }
-      setPlan(p);
+      setPlan(loadPlan());
       setAthlete(loadAthlete());
       setWorkouts(loadWorkouts());
       setReadiness(loadReadiness());

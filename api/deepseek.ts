@@ -14,6 +14,7 @@ You MUST respond with a single valid json object only. No markdown fences. No pr
 
 type DeepSeekMode =
   | 'normalize_plan'
+  | 'onboarding_plan'
   | 'daily_debrief'
   | 'readiness_explain'
   | 'missed_workout_fix'
@@ -25,6 +26,43 @@ type DeepSeekMode =
 
 const MODE_INSTRUCTIONS: Record<DeepSeekMode, string> = {
   normalize_plan: `Mode: normalize_plan. Parse markdown into TrainingPlan + coach. Return {"coach":..., "plan":...}. Omit fields you cannot verify.`,
+
+  onboarding_plan: `Mode: onboarding_plan. Build a custom TrainingPlan from onboarding context.
+
+RETURN FORMAT:
+{
+  "assistantMessage": "short summary",
+  "coach": ${COACH_JSON_EXAMPLE},
+  "athleteProfile": {
+    "id": "athlete-1",
+    "goal": "finish|finish_strong|pr|unknown",
+    "currentRace": "string optional",
+    "weeklyHoursAvailable": 0,
+    "injuryNotes": "optional"
+  },
+  "plan": {
+    "id":"string",
+    "name":"string",
+    "raceName":"optional",
+    "raceDate":"YYYY-MM-DD optional",
+    "startDate":"YYYY-MM-DD",
+    "totalWeeks": number,
+    "sportTypes": ["run","bike","swim","strength"],
+    "phases":[{"name":"Base","startWeek":1,"endWeek":6}],
+    "weeks":[{"week":1,"phase":"Base","targetHours":4.5,"keyFocus":"...","plannedSessions":[{"day":"mon","type":"run","title":"...","details":"..."}]}],
+    "rawMarkdown":"summary markdown",
+    "createdAt":"ISO-8601"
+  }
+}
+
+RULES:
+- Generate a custom plan from onboarding.goalType, onboarding.rawGoalInput, onboarding.eventName, onboarding.eventDate, onboarding.currentTrainingFrequency, onboarding.weeklyAvailability, onboarding.protectedPriority, onboarding.constraints, onboarding.injuryNotes, onboarding.firstBlockMode.
+- DO NOT default to IRONMAN, 70.3, triathlon, or any specific race unless explicitly indicated by user goal input.
+- Use safe language: Conservative / Balanced / Performance.
+- Respect constraints and recovery protections in week design.
+- If eventDate exists, set raceDate and derive totalWeeks reasonably from startDate to raceDate.
+- If no eventDate, create a general progressive plan (8-16 weeks) aligned to goal type.
+- Keep plannedSessions realistic and non-empty for each week.`,
 
   daily_debrief: `Mode: daily_debrief. Return {"coach":...} analyzing latest workout.`,
 
@@ -78,6 +116,7 @@ interface RequestBody {
   mode: DeepSeekMode;
   plan?: unknown;
   rawMarkdown?: string;
+  onboarding?: unknown;
   athleteProfile?: unknown;
   workoutLogs?: unknown[];
   readinessChecks?: unknown[];
@@ -192,6 +231,7 @@ The word json appears in these instructions. Output one json object.`;
     mode,
     date: body.date ?? new Date().toISOString().slice(0, 10),
     plan: body.plan,
+    onboarding: body.onboarding,
     athleteProfile: body.athleteProfile,
     workoutLogs: body.workoutLogs,
     readinessChecks: body.readinessChecks,
@@ -313,8 +353,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       assistantMessage,
     };
 
-    if (mode === 'normalize_plan' && parsed.plan) {
+    if ((mode === 'normalize_plan' || mode === 'onboarding_plan') && parsed.plan) {
       response.plan = parsed.plan;
+    }
+
+    if (mode === 'onboarding_plan' && parsed.athleteProfile) {
+      response.athleteProfile = parsed.athleteProfile;
     }
 
     if (mode === 'plan_assistant') {

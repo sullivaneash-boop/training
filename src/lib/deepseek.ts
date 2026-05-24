@@ -91,6 +91,7 @@ function normalizeApiPayload(data: Record<string, unknown>, mode: DeepSeekMode):
     assistantMessage,
     planPatch: planPatch ?? undefined,
     plan: data.plan as TrainingPlan | undefined,
+    athleteProfile: data.athleteProfile as AthleteProfile | undefined,
     motivationalLinks: motivationalLinks.length ? motivationalLinks : undefined,
   };
 }

@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tempo Onboarding Design Research</title>
+  <style>
+    :root {
+      --bg: #f8fafb;
+      --card: #ffffff;
+      --text: #17212b;
+      --muted: #5f6b76;
+      --line: #e6ebef;
+      --accent: #0f8a5f;
+      --callout: #eaf4ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 32px 16px 56px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.6;
+    }
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 28px;
+    }
+    h1, h2, h3 { line-height: 1.25; margin-top: 0; }
+    h1 { font-size: 1.9rem; margin-bottom: 14px; }
+    h2 {
+      font-size: 1.25rem;
+      margin: 28px 0 12px;
+      padding-top: 8px;
+      border-top: 1px solid var(--line);
+    }
+    h3 { font-size: 1.02rem; margin: 20px 0 8px; color: #1f2f3d; }
+    p, li { font-size: 0.98rem; }
+    ul, ol { margin: 8px 0 8px 20px; padding: 0; }
+    .tldr {
+      background: var(--callout);
+      border: 1px solid #cfe3ff;
+      border-radius: 14px;
+      padding: 14px 16px;
+    }
+    .muted { color: var(--muted); }
+    pre {
+      background: #f4f7f9;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      overflow: auto;
+      font-size: 0.86rem;
+      line-height: 1.4;
+    }
+    .gallery {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+      margin-top: 12px;
+    }
+    figure {
+      margin: 0;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fcfdfe;
+    }
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 10px;
+      box-shadow: 0 6px 18px rgba(14, 26, 39, 0.08);
+    }
+    figcaption {
+      margin-top: 8px;
+      font-size: 0.9rem;
+      color: #344150;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 0.94rem;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 9px 10px;
+      vertical-align: top;
+      text-align: left;
+    }
+    th { background: #f4f7f9; }
+    a { color: #0a5ebf; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .pill {
+      display: inline-block;
+      font-size: 0.82rem;
+      color: var(--accent);
+      border: 1px solid #b8dfce;
+      background: #edf9f3;
+      border-radius: 999px;
+      padding: 4px 10px;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <span class="pill">Tempo · iOS-first onboarding research</span>
+    <h1>Design Research: Tempo Premium Onboarding</h1>
+
+    <h2>TL;DR</h2>
+    <div class="tldr">
+      Tempo should move from generic setup flow to a coaching sequence:
+      <strong>performance setup -&gt; plan briefing -&gt; today activation</strong>.
+      The trust moment is Screen 5 (Plan Briefing): users must see a human timeline, phase model, Week 1 intent,
+      and editable controls before permission asks.
+    </div>
+
+    <h2>Top Recommendations</h2>
+    <ol>
+      <li>Reframe onboarding as a coaching sequence, not a form wizard.</li>
+      <li>Make Plan Briefing the main "aha": clear summary, phases, Week 1, and why-it-fits reasoning.</li>
+      <li>Keep Apple Health sync after value and non-blocking.</li>
+      <li>Replace quick tour with Today activation and immediate first session.</li>
+    </ol>
+
+    <h3>ASCII: Flow Arc</h3>
+    <pre>Welcome -> Goal -> Starting Point -> Building Plan -> Plan Briefing -> Health Sync (optional) -> Today's Briefing</pre>
+
+    <h2>Required 7-Screen Flow (Proposed)</h2>
+    <table>
+      <thead>
+        <tr><th>Screen</th><th>Intent</th><th>Key Copy / UI</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1. Welcome</td>
+          <td>Set confidence and direction</td>
+          <td><strong>Know what to do next.</strong> + "How Tempo starts" 3-step card + <code>Build my plan</code>.</td>
+        </tr>
+        <tr>
+          <td>2. Goal</td>
+          <td>Capture target with low friction</td>
+          <td>2-column goal grid + <code>Add detail</code> input for race URL or free text.</td>
+        </tr>
+        <tr>
+          <td>3. Starting Point</td>
+          <td>Calibrate first week safely</td>
+          <td>5 progressive question blocks with chips; optional injury notes only when relevant.</td>
+        </tr>
+        <tr>
+          <td>4. Building Plan Briefing</td>
+          <td>Show intentional computation</td>
+          <td>Animated checklist: reading goal, timeline, weekly load, first block, recovery space.</td>
+        </tr>
+        <tr>
+          <td>5. Plan Briefing</td>
+          <td>Main trust and conversion moment</td>
+          <td>Plan summary card + Base/Build/Peak/Taper strip + Week 1 card + "Why this fits" + pre-start adjustments.</td>
+        </tr>
+        <tr>
+          <td>6. Health Sync</td>
+          <td>Permission after value</td>
+          <td>Clear data purpose cards (Workouts/HR/Sleep/Steps/Weight) + <code>Not now</code>.</td>
+        </tr>
+        <tr>
+          <td>7. Today's Briefing</td>
+          <td>Immediate execution</td>
+          <td>"Week 1 starts today" + today's session card + adjust controls + start CTA.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Data and Logic Requirements</h2>
+    <ul>
+      <li>Map modes: <code>conservative -&gt; Conservative</code>, <code>balanced -&gt; Balanced</code>, <code>aggressive -&gt; Performance</code>.</li>
+      <li>Format dates into human-readable timeline ranges (for example, <code>May 25 -&gt; Oct 17</code>).</li>
+      <li>Generate phase model for long plans: Base, Build, Peak, Taper.</li>
+      <li>Persist onboarding state fields for goal, constraints, mode, health sync, completion flags.</li>
+    </ul>
+
+    <h2>Key Examples</h2>
+    <div class="gallery">
+      <figure>
+        <img src="references/runna-revyl-goal.png" alt="Runna goal onboarding screen" />
+        <figcaption>Runna - Goal capture early in flow anchors the plan around intent [Web].</figcaption>
+      </figure>
+      <figure>
+        <img src="references/runna-revyl-plan-summary.png" alt="Runna plan summary screen" />
+        <figcaption>Runna - Mid-flow plan summary validates user effort with concrete output [Web].</figcaption>
+      </figure>
+      <figure>
+        <img src="references/runna-revyl-building-plan.png" alt="Runna building plan screen" />
+        <figcaption>Runna - Transitional loading state communicates personalized computation [Web].</figcaption>
+      </figure>
+      <figure>
+        <img src="references/runna-revyl-plan-ready.png" alt="Runna plan ready screen" />
+        <figcaption>Runna - Plan-ready moment establishes confidence before handoff [Web].</figcaption>
+      </figure>
+      <figure>
+        <img src="references/runna-revyl-today-home.png" alt="Runna today home screen" />
+        <figcaption>Runna - Activation lands on actionable daily context, not tutorial UI [Web].</figcaption>
+      </figure>
+      <figure>
+        <img src="references/strava-onboarding-1.jpg" alt="Strava onboarding screenshot" />
+        <figcaption>Strava - Clear hierarchy and direct entry actions in first-run framing [Web].</figcaption>
+      </figure>
+      <figure>
+        <img src="references/garmin-connect-onboarding-1.jpg" alt="Garmin Connect onboarding screenshot" />
+        <figcaption>Garmin Connect - Utility-first setup language tied to actual training use [Web].</figcaption>
+      </figure>
+      <figure>
+        <img src="references/runna-onboarding-1.jpg" alt="Runna App Store onboarding screenshot" />
+        <figcaption>Runna - Athletic brand tone with focused setup path [Web].</figcaption>
+      </figure>
+    </div>
+
+    <h2>Sources</h2>
+    <ul>
+      <li><a href="https://revyl.com/atlas/runna/flows/sign-up-and-complete-onboarding/">Revyl - Runna onboarding flow</a></li>
+      <li><a href="https://www.growthdives.com/p/how-to-nail-onboarding-a-case-study">GrowthDives - Runna onboarding case study</a></li>
+      <li><a href="https://lifecyclearchitect.com/guides/onboarding-optimization-for-fitness-apps/">Lifecycle Architect - Fitness onboarding optimization</a></li>
+      <li><a href="https://support.strava.com/hc/en-us/articles/216917527-Health-App-and-Strava">Strava support - Health app integration</a></li>
+      <li><a href="https://www8.garmin.com/manuals/webhelp/GUID-0221611A-992D-495E-8DED-1DD448F7A066/EN-US/GUID-A2FB338B-0E75-4149-A5EE-BA66064D2ABF.html">Garmin manual - Training plans setup</a></li>
+      <li><a href="https://apps.apple.com/us/app/runna-running-plans-coach/id1594204443">Runna App Store</a></li>
+      <li><a href="https://apps.apple.com/us/app/strava-run-bike-walk/id426826309">Strava App Store</a></li>
+      <li><a href="https://apps.apple.com/us/app/garmin-connect/id583446403">Garmin Connect App Store</a></li>
+    </ul>
+
+    <p class="muted"><strong>Constraint:</strong> Lazyweb MCP was unavailable in this workspace, so this report uses web-captured references only.</p>
+  </main>
+</body>
+</html>
