@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PrimaryButton } from '../components/PrimaryButton';
-import { LandingPage } from '../components/landing/LandingPage';
 import { checkAuth, legacyLogin } from '../lib/auth';
 import { authClient } from '../lib/auth-client';
 import { loadOnboarding } from '../lib/storage';
@@ -13,6 +12,11 @@ type ToastItem = {
   message: string;
   level: ToastLevel;
 };
+
+const LandingPage = lazy(async () => {
+  const module = await import('../components/landing/LandingPage');
+  return { default: module.LandingPage };
+});
 
 type AuthResultError = {
   message?: string;
@@ -195,14 +199,16 @@ export function Login() {
         ))}
       </div>
       <div className="mx-auto w-full max-w-md">
-        <LandingPage
-          onGetStarted={() => {
-            setShowAuthPanel(true);
-            setShowEmailForm(false);
-            setShowLegacyForm(false);
-            setError('');
-          }}
-        />
+        <Suspense fallback={<div className="h-[560px] rounded-[2rem] border border-[#e6ebe5] bg-white/70" />}>
+          <LandingPage
+            onGetStarted={() => {
+              setShowAuthPanel(true);
+              setShowEmailForm(false);
+              setShowLegacyForm(false);
+              setError('');
+            }}
+          />
+        </Suspense>
 
         {showAuthPanel && (
           <div

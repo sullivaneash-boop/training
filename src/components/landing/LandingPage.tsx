@@ -1,4 +1,5 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 
 type LandingPageProps = {
   onGetStarted: () => void;
@@ -10,33 +11,60 @@ type MotionProps = {
   className?: string;
 };
 
-function useReducedMotion() {
-  const [reducedMotion, setReducedMotion] = useState(false);
-
-  useEffect(() => {
-    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReducedMotion(media.matches);
-    const onChange = (event: MediaQueryListEvent) => setReducedMotion(event.matches);
-    media.addEventListener('change', onChange);
-    return () => media.removeEventListener('change', onChange);
-  }, []);
-
-  return reducedMotion;
-}
-
 function MotionReveal({ delay = 0, className = '', children }: MotionProps) {
-  const reducedMotion = useReducedMotion();
+  const reduceMotion = useReducedMotion();
+  const ease = [0.22, 1, 0.36, 1] as const;
 
-  if (reducedMotion) {
-    return <div className={className}>{children}</div>;
+  if (reduceMotion) {
+    return (
+      <motion.div className={className} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        {children}
+      </motion.div>
+    );
   }
 
   return (
-    <div
-      className={`tempo-reveal ${className}`}
-      style={{ animationDelay: `${delay}ms` }}
+    <motion.div
+      className={className}
+      initial={{ opacity: 0, y: 10, scale: 0.985 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.62, ease, delay: delay / 1000 }}
     >
       {children}
+    </motion.div>
+  );
+}
+
+function AnimatedBackdrop() {
+  const reduceMotion = useReducedMotion();
+  const { scrollYProgress } = useScroll();
+  const floatY = useTransform(scrollYProgress, [0, 1], [0, -24]);
+
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      <motion.div
+        className="absolute left-1/2 top-[-92px] h-[340px] w-[340px] -translate-x-1/2 rounded-full bg-[#d7ece3]/40 blur-3xl"
+        animate={reduceMotion ? undefined : { scale: [1, 1.035, 1], opacity: [0.35, 0.5, 0.35] }}
+        transition={reduceMotion ? undefined : { duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.div
+        className="absolute left-[-16%] top-52 h-[280px] w-[620px] rounded-[100%] border border-[#dbe6de]"
+        style={reduceMotion ? undefined : { y: floatY }}
+      />
+      <motion.div
+        className="absolute right-[-28%] top-[26rem] h-[320px] w-[680px] rounded-[100%] border border-[#e2e8e2]"
+        style={reduceMotion ? undefined : { y: floatY }}
+      />
+      <motion.div
+        className="absolute left-[12%] top-[33rem] h-28 w-28 rounded-full border border-[#deeadf] bg-white/55 backdrop-blur-sm"
+        animate={reduceMotion ? undefined : { y: [0, -10, 0], opacity: [0.55, 0.8, 0.55] }}
+        transition={reduceMotion ? undefined : { duration: 6.5, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.div
+        className="absolute right-[10%] top-[18.5rem] h-16 w-16 rounded-full border border-[#dde7de] bg-white/60 backdrop-blur-sm"
+        animate={reduceMotion ? undefined : { y: [0, 8, 0], opacity: [0.5, 0.75, 0.5] }}
+        transition={reduceMotion ? undefined : { duration: 5.8, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
+      />
     </div>
   );
 }
@@ -67,27 +95,27 @@ export function HeroCopy() {
 }
 
 export function ReadinessRing({ value }: { value: number }) {
-  const reducedMotion = useReducedMotion();
-  const [progress, setProgress] = useState(reducedMotion ? value : 0);
+  const reduceMotion = useReducedMotion();
+  const prefersReducedMotion = useReducedMotion();
+  const [progress, setProgress] = useState(prefersReducedMotion ? value : 0);
   const normalizedValue = Math.max(0, Math.min(100, value));
-  const radius = 42;
+  const radius = 43;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference * (1 - progress / 100);
 
   useEffect(() => {
-    if (reducedMotion) {
+    if (prefersReducedMotion) {
       setProgress(normalizedValue);
       return;
     }
-    const timeout = window.setTimeout(() => setProgress(normalizedValue), 160);
+    const timeout = window.setTimeout(() => setProgress(normalizedValue), 170);
     return () => window.clearTimeout(timeout);
-  }, [normalizedValue, reducedMotion]);
+  }, [normalizedValue, prefersReducedMotion]);
 
   return (
-    <div className="relative h-24 w-24">
-      <svg viewBox="0 0 96 96" className="-rotate-90">
+    <div className="relative h-24 w-24 shrink-0">
+      <svg viewBox="0 0 100 100" className="-rotate-90">
         <circle cx="48" cy="48" r={radius} stroke="#dce7df" strokeWidth="9" fill="none" />
-        <circle
+        <motion.circle
           cx="48"
           cy="48"
           r={radius}
@@ -96,12 +124,13 @@ export function ReadinessRing({ value }: { value: number }) {
           fill="none"
           strokeLinecap="round"
           strokeDasharray={circumference}
-          strokeDashoffset={strokeDashoffset}
-          style={{
-            transition: reducedMotion
-              ? undefined
-              : 'stroke-dashoffset 820ms cubic-bezier(0.22,1,0.36,1)',
-          }}
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: progress / 100 }}
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : { duration: 0.86, ease: [0.22, 1, 0.36, 1], delay: 0.18 }
+          }
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -114,24 +143,35 @@ export function ReadinessRing({ value }: { value: number }) {
 
 export function MetricChip({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[#e4e8e3] bg-[#fbfcfa] px-2.5 py-2">
+    <motion.div
+      className="rounded-xl border border-[#e4e8e3] bg-[#fbfcfa] px-2.5 py-2"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+    >
       <p className="text-[0.68rem] font-semibold uppercase tracking-[0.07em] text-[#6d7884]">
         {label}
       </p>
       <p className="mt-0.5 text-[0.9rem] font-semibold text-[#1a232f]">{value}</p>
-    </div>
+    </motion.div>
   );
 }
 
 export function MiniTrendChart() {
-  const bars = useMemo(() => [42, 58, 46, 65, 54, 60], []);
+  const bars = [42, 58, 46, 65, 54, 60];
   return (
     <div className="mt-2 flex h-10 items-end gap-1.5 rounded-lg bg-[#f4f8f4] px-2 py-1.5">
       {bars.map((height, idx) => (
-        <span
+        <motion.span
           key={idx}
           className="w-2 rounded-sm bg-[#bfe5d7]"
-          style={{ height: `${height}%` }}
+          initial={{ height: '18%', opacity: 0 }}
+          animate={{ height: `${height}%`, opacity: 1 }}
+          transition={{
+            duration: 0.55,
+            ease: [0.22, 1, 0.36, 1],
+            delay: 0.38 + idx * 0.08,
+          }}
         />
       ))}
     </div>
@@ -139,8 +179,19 @@ export function MiniTrendChart() {
 }
 
 export function TodayBriefingCard() {
+  const reduceMotion = useReducedMotion();
+
   return (
-    <div className="rounded-[1.7rem] border border-[#e2e8e2] bg-white p-4">
+    <motion.div
+      className="rounded-[1.7rem] border border-[#e2e8e2] bg-white p-4"
+      initial={{ opacity: 0, y: 14, scale: 0.985 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{
+        duration: reduceMotion ? 0 : 0.68,
+        ease: [0.22, 1, 0.36, 1],
+        delay: reduceMotion ? 0 : 0.26,
+      }}
+    >
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-semibold text-[#1a232f]">Today</p>
@@ -180,21 +231,37 @@ export function TodayBriefingCard() {
 
       <MiniTrendChart />
 
-      <div className="mt-3 rounded-xl border border-[#e2e8e2] bg-[#fafcf9] p-2.5">
+      <motion.div
+        className="mt-3 rounded-xl border border-[#e2e8e2] bg-[#fafcf9] p-2.5"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.45, delay: 0.6 }}
+      >
         <p className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-[#65717d]">
           Coach note
         </p>
         <p className="mt-1 text-[0.84rem] text-[#293340]">
           Good day for quality work. Keep it aerobic unless soreness is high.
         </p>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
 export function CoachPreviewCard() {
+  const reduceMotion = useReducedMotion();
+
   return (
-    <div className="rounded-[1.45rem] border border-[#e2e8e2] bg-white p-4">
+    <motion.div
+      className="rounded-[1.45rem] border border-[#e2e8e2] bg-white p-4"
+      initial={{ opacity: 0, y: 14, scale: 0.985 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{
+        duration: reduceMotion ? 0 : 0.62,
+        ease: [0.22, 1, 0.36, 1],
+        delay: reduceMotion ? 0 : 0.34,
+      }}
+    >
       <div className="flex items-center gap-2">
         <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#ecf6ef] text-[#2E8B6D]">
           <span className="h-2.5 w-2.5 rounded-full bg-[#2E8B6D]" />
@@ -205,30 +272,83 @@ export function CoachPreviewCard() {
         </div>
       </div>
 
-      <div className="mt-3 rounded-xl border border-[#e0e7e1] bg-[#fafcf9] p-3">
-        <p className="text-[0.9rem] text-[#2b3440]">
+      <motion.div
+        className="mt-3 rounded-xl border border-[#e0e7e1] bg-[#fafcf9] p-3"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.58 }}
+      >
+        <motion.p
+          className="text-[0.9rem] text-[#2b3440]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.7 }}
+        >
           You&apos;re trending well. Want me to adjust this week around your long run?
-        </p>
-      </div>
+        </motion.p>
+      </motion.div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        {['Adjust today', 'Explain readiness', 'Plan week', "I'm sore"].map((action) => (
-          <button
+      <motion.div className="mt-3 flex flex-wrap gap-2" initial="hidden" animate="show">
+        {['Adjust today', 'Explain readiness', 'Plan week', "I'm sore"].map((action, idx) => (
+          <motion.button
             type="button"
             key={action}
             className="rounded-full border border-[#dbe3db] bg-white px-3 py-1.5 text-[0.74rem] font-medium text-[#33414f]"
+            variants={{
+              hidden: { opacity: 0, y: 6 },
+              show: { opacity: 1, y: 0 },
+            }}
+            transition={{ duration: 0.34, delay: 0.7 + idx * 0.08 }}
           >
             {action}
-          </button>
+          </motion.button>
         ))}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function BackgroundSignalCard({
+  title,
+  value,
+  className,
+  delay = 0,
+}: {
+  title: string;
+  value: string;
+  className: string;
+  delay?: number;
+}) {
+  const reduceMotion = useReducedMotion();
+
+  return (
+    <motion.div
+      className={`absolute rounded-2xl border border-[#dfe7df] bg-white/78 px-3 py-2 backdrop-blur-sm ${className}`}
+      initial={{ opacity: 0, y: 12, scale: 0.98 }}
+      animate={{
+        opacity: 1,
+        y: reduceMotion ? 0 : [0, -8, 0],
+        scale: 1,
+      }}
+      transition={{
+        duration: reduceMotion ? 0.2 : 6.2,
+        ease: 'easeInOut',
+        repeat: reduceMotion ? 0 : Infinity,
+        delay,
+      }}
+    >
+      <p className="text-[0.62rem] font-semibold uppercase tracking-[0.08em] text-[#6f7984]">{title}</p>
+      <p className="mt-0.5 text-[0.88rem] font-semibold text-[#24303c]">{value}</p>
+    </motion.div>
   );
 }
 
 export function ProductPreview() {
   return (
-    <div className="space-y-3">
+    <div className="relative space-y-3 overflow-visible">
+      <BackgroundSignalCard title="Sleep" value="7h 42m" className="-left-4 top-20 w-24" delay={0.1} />
+      <BackgroundSignalCard title="Load" value="Optimal" className="-right-3 top-10 w-24" delay={0.2} />
+      <BackgroundSignalCard title="HRV" value="Stable" className="-right-2 bottom-20 w-24" delay={0.35} />
       <TodayBriefingCard />
       <CoachPreviewCard />
     </div>
@@ -298,8 +418,8 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
   const featuresRef = useRef<HTMLDivElement | null>(null);
 
   return (
-    <div className="space-y-6">
-      <div className="pointer-events-none absolute inset-x-0 top-10 h-56 bg-[radial-gradient(circle_at_50%_5%,rgba(46,139,109,0.10),transparent_68%)]" />
+    <div className="relative space-y-6 pb-2">
+      <AnimatedBackdrop />
 
       <MotionReveal delay={30} className="relative">
         <TempoWordmark />
