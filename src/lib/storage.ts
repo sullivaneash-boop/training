@@ -37,8 +37,8 @@ const DEFAULT_ATHLETE: AthleteProfile = {
 
 const DEFAULT_ONBOARDING: OnboardingState = {
   constraints: [],
-  planIntensityPreference: 'balanced',
-  appleHealthPermissionStatus: 'not_requested',
+  firstBlockMode: 'balanced',
+  healthConnected: false,
   healthPermissions: {
     workouts: false,
     heartRate: false,
@@ -47,7 +47,6 @@ const DEFAULT_ONBOARDING: OnboardingState = {
     steps: false,
   },
   onboardingCompleted: false,
-  tourCompleted: false,
   activePlanCreated: false,
 };
 
@@ -200,10 +199,19 @@ export function loadOnboarding(): OnboardingState {
   try {
     const raw = localStorage.getItem(KEYS.onboarding);
     if (!raw) return DEFAULT_ONBOARDING;
-    const parsed = JSON.parse(raw) as Partial<OnboardingState>;
+    const parsed = JSON.parse(raw) as Partial<OnboardingState> & {
+      planPriority?: OnboardingState['protectedPriority'];
+      planIntensityPreference?: OnboardingState['firstBlockMode'];
+      appleHealthPermissionStatus?: 'not_requested' | 'connected' | 'later';
+      tourCompleted?: boolean;
+    };
     return {
       ...DEFAULT_ONBOARDING,
       ...parsed,
+      protectedPriority: parsed.protectedPriority ?? parsed.planPriority,
+      firstBlockMode: parsed.firstBlockMode ?? parsed.planIntensityPreference ?? 'balanced',
+      healthConnected:
+        parsed.healthConnected ?? parsed.appleHealthPermissionStatus === 'connected',
       healthPermissions: {
         ...DEFAULT_ONBOARDING.healthPermissions,
         ...(parsed.healthPermissions ?? {}),

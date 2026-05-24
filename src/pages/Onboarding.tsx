@@ -7,40 +7,47 @@ import { useTrainingData } from '../hooks/useTrainingData';
 import type {
   ConstraintType,
   CurrentTrainingFrequency,
+  FirstBlockMode,
   GoalType,
   HealthPermissionKey,
   OnboardingState,
-  PlanIntensityPreference,
-  PlanPriority,
+  ProtectedPriority,
   WeeklyAvailability,
 } from '../lib/types';
 
-type Step = 'welcome' | 'goal' | 'starting_point' | 'building' | 'review' | 'health' | 'tour';
+type Step =
+  | 'welcome'
+  | 'goal'
+  | 'starting_point'
+  | 'building_plan_briefing'
+  | 'plan_briefing'
+  | 'health_sync'
+  | 'today_briefing';
 
 const GOAL_OPTIONS: { id: GoalType; title: string; note: string }[] = [
-  { id: 'race_event', title: 'Race or event', note: 'A specific event with a date.' },
-  { id: 'general_fitness', title: 'General fitness', note: 'Build aerobic fitness and consistency.' },
-  { id: 'strength', title: 'Strength', note: 'Maintain or improve strength blocks.' },
-  { id: 'hybrid_training', title: 'Hybrid training', note: 'Blend endurance and strength work.' },
-  { id: 'recovery_return', title: 'Recovery / return', note: 'Come back safely after time off.' },
-  { id: 'not_sure', title: 'Not sure yet', note: 'Tempo can suggest a conservative start.' },
+  { id: 'race_event', title: 'Race', note: 'Build toward a date' },
+  { id: 'general_fitness', title: 'Fitness', note: 'Get consistent' },
+  { id: 'strength', title: 'Strength', note: 'Keep lifting' },
+  { id: 'hybrid_training', title: 'Hybrid', note: 'Run + lift' },
+  { id: 'recovery_return', title: 'Return', note: 'Come back carefully' },
+  { id: 'not_sure', title: 'Not sure', note: 'Start conservative' },
 ];
 
 const FREQUENCY_OPTIONS: { id: CurrentTrainingFrequency; label: string }[] = [
-  { id: 'not_consistent', label: 'Not consistently' },
-  { id: '1_2_days', label: '1–2 days/week' },
-  { id: '3_4_days', label: '3–4 days/week' },
+  { id: 'not_consistent', label: 'Not training consistently' },
+  { id: '1_2_days', label: '1-2 days/week' },
+  { id: '3_4_days', label: '3-4 days/week' },
   { id: '5_plus_days', label: '5+ days/week' },
   { id: 'coming_back', label: 'Coming back after time off' },
 ];
 
-const PRIORITY_OPTIONS: { id: PlanPriority; label: string }[] = [
-  { id: 'finish_strong', label: 'Finish strong' },
-  { id: 'get_faster', label: 'Get faster' },
-  { id: 'build_consistency', label: 'Build consistency' },
-  { id: 'avoid_injury', label: 'Avoid injury' },
-  { id: 'body_composition', label: 'Improve body composition' },
-  { id: 'balance_strength_endurance', label: 'Balance strength + endurance' },
+const PROTECTED_PRIORITY_OPTIONS: { id: ProtectedPriority; label: string }[] = [
+  { id: 'recovery', label: 'Recovery' },
+  { id: 'schedule', label: 'Schedule' },
+  { id: 'injury_history', label: 'Injury history' },
+  { id: 'strength_work', label: 'Strength work' },
+  { id: 'race_performance', label: 'Race performance' },
+  { id: 'consistency', label: 'Consistency' },
 ];
 
 const AVAILABILITY_OPTIONS: WeeklyAvailability[] = ['2', '3', '4', '5', '6_plus'];
@@ -48,40 +55,47 @@ const AVAILABILITY_OPTIONS: WeeklyAvailability[] = ['2', '3', '4', '5', '6_plus'
 const CONSTRAINT_OPTIONS: { id: ConstraintType; label: string }[] = [
   { id: 'injury_pain', label: 'Injury or pain' },
   { id: 'limited_equipment', label: 'Limited equipment' },
-  { id: 'busy_schedule', label: 'Busy schedule' },
-  { id: 'low_recovery', label: 'Low recovery' },
   { id: 'travel', label: 'Travel' },
-  { id: 'no_constraints', label: 'No constraints' },
+  { id: 'busy_schedule', label: 'Busy work weeks' },
+  { id: 'low_recovery', label: 'Low sleep' },
+  { id: 'no_constraints', label: 'None' },
 ];
 
-const INTENSITY_OPTIONS: { id: PlanIntensityPreference; label: string }[] = [
-  { id: 'conservative', label: 'Conservative' },
+const FIRST_BLOCK_MODE_OPTIONS: { id: FirstBlockMode; label: string }[] = [
+  { id: 'conservative', label: 'Easy start' },
   { id: 'balanced', label: 'Balanced' },
-  { id: 'aggressive', label: 'Aggressive' },
-  { id: 'flexible', label: 'Flexible week-to-week' },
+  { id: 'aggressive', label: 'Performance-focused' },
+  { id: 'flexible', label: 'Flexible week to week' },
 ];
 
-const BUILDING_ITEMS = [
-  'Reading your goal',
-  'Estimating your timeline',
-  'Balancing training load',
-  'Adding recovery space',
-  'Preparing your first week',
+const HEALTH_PERMISSION_EXPLANATIONS: [HealthPermissionKey, string, string][] = [
+  ['workouts', 'Workouts', 'Detect completed sessions'],
+  ['heartRate', 'Heart rate', 'Understand effort'],
+  ['sleep', 'Sleep', 'Add recovery context'],
+  ['steps', 'Steps', 'Read daily load'],
+  ['weight', 'Weight', 'Optional trend tracking'],
 ];
 
-const TOUR_STEPS = [
-  { title: 'Dashboard', body: 'Your daily training briefing lives here.' },
-  { title: 'Plan', body: 'Your plan adapts around reality, not perfect weeks.' },
-  { title: 'Insights', body: 'Track trendlines instead of one-off numbers.' },
-  { title: 'Coach', body: 'Ask for adjustments anytime from Coach.' },
-  { title: 'Start plan', body: "You're ready to start and move into Week 1." },
-];
+function formatDateHuman(value?: string): string | undefined {
+  if (!value) return undefined;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function addDaysISO(from: string, days: number): string {
+  const d = new Date(from);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 
 function parseGoalInput(text: string) {
   const trimmed = text.trim();
   const eventUrl = trimmed.match(/https?:\/\/\S+/i)?.[0];
   const dateGuess = new Date(trimmed);
   const eventDate = Number.isNaN(dateGuess.getTime()) ? undefined : dateGuess.toISOString().slice(0, 10);
+  const rawEventName = trimmed.split(/\bon\b|\bfor\b/i)[0]?.trim();
+  const eventName = rawEventName?.length ? rawEventName.slice(0, 70) : undefined;
   const lower = trimmed.toLowerCase();
   const sport = lower.includes('tri')
     ? 'triathlon'
@@ -94,10 +108,35 @@ function parseGoalInput(text: string) {
           : lower.includes('strength')
             ? 'strength'
             : undefined;
-  const distance = trimmed.match(
-    /\b(\d+(?:\.\d+)?)\s?(k|km|mi|miles?|marathon|half marathon|70\.3|140\.6)\b/i,
-  )?.[0];
-  return { eventUrl, eventDate, sport, distance };
+  return { eventUrl, eventDate, eventName, sport };
+}
+
+function modeLabel(mode: FirstBlockMode): string {
+  if (mode === 'aggressive') return 'Performance';
+  if (mode === 'conservative') return 'Conservative';
+  if (mode === 'flexible') return 'Flexible';
+  return 'Balanced';
+}
+
+function makePhaseModel(totalWeeks: number) {
+  if (totalWeeks === 21) {
+    return [
+      { name: 'Base', range: 'Weeks 1-6' },
+      { name: 'Build', range: 'Weeks 7-14' },
+      { name: 'Peak', range: 'Weeks 15-18' },
+      { name: 'Taper', range: 'Weeks 19-21' },
+    ];
+  }
+  if (totalWeeks < 16) return [];
+  const baseEnd = Math.max(4, Math.round(totalWeeks * 0.3));
+  const buildEnd = Math.max(baseEnd + 3, Math.round(totalWeeks * 0.7));
+  const peakEnd = Math.max(buildEnd + 1, totalWeeks - 2);
+  return [
+    { name: 'Base', range: `Weeks 1-${baseEnd}` },
+    { name: 'Build', range: `Weeks ${baseEnd + 1}-${buildEnd}` },
+    { name: 'Peak', range: `Weeks ${buildEnd + 1}-${peakEnd}` },
+    { name: 'Taper', range: `Weeks ${peakEnd + 1}-${totalWeeks}` },
+  ];
 }
 
 function ChoiceButton({
@@ -115,7 +154,7 @@ function ChoiceButton({
     <button
       type="button"
       onClick={onClick}
-      className={`w-full rounded-2xl border px-4 py-3 text-left transition-colors ${
+      className={`w-full rounded-[18px] border px-4 py-3 text-left transition-colors ${
         active ? 'border-accent bg-[#e8f4ee]' : 'border-border bg-surface hover:border-neutral-300'
       }`}
     >
@@ -130,37 +169,55 @@ export function Onboarding() {
   const { onboarding, updateOnboarding, plan } = useTrainingData();
   const [step, setStep] = useState<Step>('welcome');
   const [startingIndex, setStartingIndex] = useState(0);
-  const [tourIndex, setTourIndex] = useState(0);
   const [previewWeek, setPreviewWeek] = useState(false);
   const [buildProgress, setBuildProgress] = useState(0);
   const [draft, setDraft] = useState<OnboardingState>(onboarding);
 
+  const buildingItems = useMemo(() => {
+    const items = [
+      'Reading your goal',
+      'Setting your timeline',
+      'Estimating weekly load',
+      'Creating your first block',
+      'Adding recovery space',
+    ];
+    if (draft.eventDate || draft.eventUrl) items.splice(2, 0, 'Mapping race timeline');
+    return items;
+  }, [draft.eventDate, draft.eventUrl]);
+
   useEffect(() => {
-    if (step !== 'building') return;
+    if (step !== 'building_plan_briefing') return;
     setBuildProgress(0);
     const interval = setInterval(() => {
-      setBuildProgress((v) => Math.min(BUILDING_ITEMS.length, v + 1));
-    }, 400);
+      setBuildProgress((v) => Math.min(buildingItems.length, v + 1));
+    }, 350);
     const done = setTimeout(() => {
       setDraft((prev) => ({
         ...prev,
-        generatedPlanName: plan?.name ?? 'Tempo Starter Plan',
-        generatedAt: new Date().toISOString(),
+        generatedPlanName: prev.generatedPlanName ?? plan?.name ?? 'Tempo Plan Briefing',
+        generatedAt: prev.generatedAt ?? new Date().toISOString(),
       }));
-      setStep('review');
-    }, 2300);
+      setStep('plan_briefing');
+    }, 2200);
     return () => {
       clearInterval(interval);
       clearTimeout(done);
     };
-  }, [step, plan?.name]);
+  }, [buildingItems.length, plan?.name, step]);
 
   const currentWeek = useMemo(() => plan?.weeks?.[0], [plan]);
-  const timelineLabel = useMemo(() => {
-    if (!plan) return '12 weeks';
-    if (plan.raceDate && plan.startDate) return `${plan.startDate} → ${plan.raceDate}`;
-    return `${plan.totalWeeks ?? plan.weeks.length} weeks`;
-  }, [plan]);
+  const totalWeeks = plan?.totalWeeks ?? plan?.weeks?.length ?? 21;
+  const phaseModel = useMemo(() => makePhaseModel(totalWeeks), [totalWeeks]);
+  const startDateIso = plan?.startDate ?? new Date().toISOString().slice(0, 10);
+  const endDateIso = plan?.raceDate ?? draft.eventDate ?? addDaysISO(startDateIso, totalWeeks * 7 - 1);
+  const timelineLabel = `${formatDateHuman(startDateIso) ?? startDateIso} -> ${formatDateHuman(endDateIso) ?? endDateIso}`;
+  const weekOneTarget = currentWeek?.targetHours
+    ? `${currentWeek.targetHours.toFixed(1)} hrs`
+    : draft.weeklyAvailability === '6_plus'
+      ? '6.0 hrs'
+      : draft.weeklyAvailability
+        ? `${Number(draft.weeklyAvailability) * 1.1} hrs`
+        : '4.5 hrs';
 
   function commit(partial: Partial<OnboardingState>) {
     const next = {
@@ -178,63 +235,61 @@ export function Onboarding() {
 
   function goToStartingStep() {
     if (!draft.goalType && !draft.rawGoalInput?.trim()) return;
-    const parsed = parseGoalInput(draft.rawGoalInput ?? '');
-    commit(parsed);
+    commit(parseGoalInput(draft.rawGoalInput ?? ''));
     setStep('starting_point');
     setStartingIndex(0);
   }
 
-  function completeSetup() {
+  function finishOnboarding(path = '/') {
     const finalState: OnboardingState = {
       ...draft,
       onboardingCompleted: true,
-      tourCompleted: true,
-      activePlanCreated: false,
-      generatedPlanName: draft.generatedPlanName ?? plan?.name ?? 'Tempo Starter Plan',
+      activePlanCreated: true,
+      generatedPlanName: draft.generatedPlanName ?? plan?.name ?? 'Tempo Plan Briefing',
       generatedAt: draft.generatedAt ?? new Date().toISOString(),
     };
     setDraft(finalState);
     updateOnboarding(finalState);
-    navigate('/', { replace: true });
+    navigate(path, { replace: true });
   }
 
   return (
     <div className="mx-auto min-h-dvh w-full max-w-lg bg-background px-4 pb-8 pt-safe-top">
       {step === 'welcome' && (
         <div className="space-y-6 py-6">
-          <PageHeader title="Train with context. Not guesswork." />
+          <PageHeader title="Know what to do next." />
           <p className="text-sm leading-relaxed text-muted">
-            Tempo combines your training context with a structured setup so your first plan is clear,
-            practical, and adjustable before you start.
+            Tempo turns your goal, schedule, and training data into a plan that adapts around real life.
           </p>
-          <Card className="space-y-2">
-            <p className="section-label">Trust</p>
+          <Card className="space-y-2 rounded-[22px]">
+            <p className="section-label">How Tempo starts</p>
             <div className="space-y-1.5 text-sm text-foreground">
-              <p>Apple Health compatible</p>
-              <p>You control your plan before activation</p>
-              <p>No manual logging required to begin</p>
+              <p>01 Set your goal</p>
+              <p>02 Review your starting plan</p>
+              <p>03 Connect Apple Health for smarter adjustments</p>
             </div>
           </Card>
           <Button type="button" onClick={() => setStep('goal')}>
-            Start setup
+            Build my plan
           </Button>
           <button
             type="button"
             onClick={() => navigate('/login')}
             className="w-full rounded-xl px-3 py-2 text-sm font-medium text-muted underline"
           >
-            I already have an account
+            Sign in
           </button>
+          <p className="text-center text-xs text-muted">No manual logging required to begin.</p>
         </div>
       )}
 
       {step === 'goal' && (
         <div className="space-y-4 py-4">
-          <PageHeader title="What are you training for?" />
+          <PageHeader title="What are you building toward?" />
           <p className="text-sm text-muted">
-            Add a race, event, goal, or general focus. Tempo will build a controlled starting point.
+            Choose a direction. Add a race link or describe the goal in your own words.
           </p>
-          <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
             {GOAL_OPTIONS.map((option) => (
               <ChoiceButton
                 key={option.id}
@@ -245,47 +300,47 @@ export function Onboarding() {
               />
             ))}
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold uppercase tracking-[0.06em] text-muted">Add detail</p>
             <Textarea
               value={draft.rawGoalInput ?? ''}
               onChange={(e) => commit({ rawGoalInput: e.target.value })}
-              placeholder="Paste an event link or describe your goal"
-              className="min-h-[92px]"
+              placeholder="Paste a race link or describe your goal"
+              className="min-h-[96px]"
             />
             <p className="text-xs text-muted">
-              Example: “Half marathon on October 12” or “Build endurance without losing strength.”
+              Links, messy notes, and rough goals are fine. Tempo will clean it up.
             </p>
           </div>
           <Button type="button" onClick={goToStartingStep}>
-            Build my starting plan
+            Continue
           </Button>
-          <button
-            type="button"
-            onClick={() => setStep('starting_point')}
-            className="w-full rounded-xl px-3 py-2 text-sm font-medium text-muted underline"
-          >
-            Skip for now
-          </button>
         </div>
       )}
 
       {step === 'starting_point' && (
         <div className="space-y-4 py-4">
-          <div className="space-y-1">
+          <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">
               Starting point {startingIndex + 1}/5
             </p>
-            <div className="h-1.5 overflow-hidden rounded-full bg-border">
-              <div
-                className="h-full rounded-full bg-accent transition-all"
-                style={{ width: `${((startingIndex + 1) / 5) * 100}%` }}
-              />
+            <div className="flex gap-1.5">
+              {Array.from({ length: 5 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className={`h-1.5 flex-1 rounded-full ${idx <= startingIndex ? 'bg-accent' : 'bg-border'}`}
+                />
+              ))}
             </div>
           </div>
 
           {startingIndex === 0 && (
             <>
-              <PageHeader title="How are you training right now?" />
+              <PageHeader
+                title="Calibrate your starting point"
+                subtitle="A few answers help Tempo set the first week without overreaching."
+              />
+              <p className="section-label">How consistent are you right now?</p>
               <div className="space-y-2">
                 {FREQUENCY_OPTIONS.map((option) => (
                   <ChoiceButton
@@ -301,14 +356,14 @@ export function Onboarding() {
 
           {startingIndex === 1 && (
             <>
-              <PageHeader title="What matters most for this plan?" />
-              <div className="space-y-2">
-                {PRIORITY_OPTIONS.map((option) => (
+              <PageHeader title="What should Tempo protect?" />
+              <div className="grid grid-cols-2 gap-2">
+                {PROTECTED_PRIORITY_OPTIONS.map((option) => (
                   <ChoiceButton
                     key={option.id}
                     title={option.label}
-                    active={draft.planPriority === option.id}
-                    onClick={() => commit({ planPriority: option.id })}
+                    active={draft.protectedPriority === option.id}
+                    onClick={() => commit({ protectedPriority: option.id })}
                   />
                 ))}
               </div>
@@ -317,7 +372,7 @@ export function Onboarding() {
 
           {startingIndex === 2 && (
             <>
-              <PageHeader title="How many days can you realistically train?" />
+              <PageHeader title="How many days can you train most weeks?" />
               <div className="grid grid-cols-3 gap-2">
                 {AVAILABILITY_OPTIONS.map((option) => (
                   <ChoiceButton
@@ -333,8 +388,8 @@ export function Onboarding() {
 
           {startingIndex === 3 && (
             <>
-              <PageHeader title="Anything Tempo should avoid or work around?" />
-              <div className="space-y-2">
+              <PageHeader title="Any constraints?" />
+              <div className="grid grid-cols-2 gap-2">
                 {CONSTRAINT_OPTIONS.map((option) => {
                   const active = draft.constraints.includes(option.id);
                   return (
@@ -359,7 +414,7 @@ export function Onboarding() {
                 <Input
                   value={draft.injuryNotes ?? ''}
                   onChange={(e) => commit({ injuryNotes: e.target.value })}
-                  placeholder="Optional: shoulder flare-up, return-to-run limits, etc."
+                  placeholder="Optional: anything Tempo should account for"
                 />
               )}
             </>
@@ -367,14 +422,14 @@ export function Onboarding() {
 
           {startingIndex === 4 && (
             <>
-              <PageHeader title="What kind of plan do you want?" />
+              <PageHeader title="How should the first block feel?" />
               <div className="space-y-2">
-                {INTENSITY_OPTIONS.map((option) => (
+                {FIRST_BLOCK_MODE_OPTIONS.map((option) => (
                   <ChoiceButton
                     key={option.id}
                     title={option.label}
-                    active={(draft.planIntensityPreference ?? 'balanced') === option.id}
-                    onClick={() => commit({ planIntensityPreference: option.id })}
+                    active={(draft.firstBlockMode ?? 'balanced') === option.id}
+                    onClick={() => commit({ firstBlockMode: option.id })}
                   />
                 ))}
               </div>
@@ -394,23 +449,23 @@ export function Onboarding() {
               type="button"
               onClick={() => {
                 if (startingIndex < 4) setStartingIndex((v) => v + 1);
-                else setStep('building');
+                else setStep('building_plan_briefing');
               }}
             >
-              {startingIndex < 4 ? 'Continue' : 'Build my starting plan'}
+              {startingIndex < 4 ? 'Continue' : 'Build plan briefing'}
             </Button>
           </div>
         </div>
       )}
 
-      {step === 'building' && (
+      {step === 'building_plan_briefing' && (
         <div className="space-y-4 py-8">
-          <PageHeader title="Building your starting plan" />
+          <PageHeader title="Building your plan briefing" />
           <div className="space-y-2">
-            {BUILDING_ITEMS.map((item, idx) => (
+            {buildingItems.map((item, idx) => (
               <div
                 key={item}
-                className={`flex items-center justify-between rounded-xl border px-3 py-2 text-sm ${
+                className={`flex items-center justify-between rounded-[16px] border px-3 py-2 text-sm ${
                   idx < buildProgress ? 'border-accent/30 bg-[#e8f4ee]' : 'border-border bg-surface'
                 }`}
               >
@@ -419,44 +474,68 @@ export function Onboarding() {
               </div>
             ))}
           </div>
+          {!draft.healthConnected && (
+            <p className="text-xs text-muted">Health data can be connected after review.</p>
+          )}
         </div>
       )}
 
-      {step === 'review' && (
+      {step === 'plan_briefing' && (
         <div className="space-y-4 py-4">
-          <PageHeader title="Your starting plan is ready" />
-          <Card className="space-y-2">
-            <p className="text-sm font-semibold text-foreground">
-              {draft.generatedPlanName ?? plan?.name ?? 'Tempo Starter Plan'}
-            </p>
+          <PageHeader title="Your plan briefing is ready" />
+
+          <Card className="space-y-3 rounded-[22px]">
+            <div>
+              <p className="text-lg font-semibold text-foreground">
+                {draft.eventName ?? draft.generatedPlanName ?? plan?.name ?? 'Your training goal'}
+              </p>
+              <p className="text-sm text-muted">{totalWeeks}-week controlled build</p>
+            </div>
             <div className="grid grid-cols-2 gap-2 text-xs text-muted">
               <p>Timeline: {timelineLabel}</p>
-              <p>Training days/week: {draft.weeklyAvailability ?? '4'}</p>
-              <p>Focus: {draft.planPriority?.replace(/_/g, ' ') ?? 'build consistency'}</p>
-              <p>Intensity: {draft.planIntensityPreference ?? 'balanced'}</p>
-              <p>Start date: {plan?.startDate ?? new Date().toISOString().slice(0, 10)}</p>
+              <p>Training days/week: {draft.weeklyAvailability === '6_plus' ? '6+' : draft.weeklyAvailability ?? '4'}</p>
+              <p>First week target: {weekOneTarget}</p>
+              <p>Start mode: {modeLabel(draft.firstBlockMode ?? 'balanced')}</p>
             </div>
           </Card>
+
+          {phaseModel.length > 0 && (
+            <Card className="space-y-2">
+              <p className="section-label">Phase timeline</p>
+              <div className="space-y-1.5">
+                {phaseModel.map((phase) => (
+                  <div key={phase.name} className="flex items-center justify-between border-b border-border/70 pb-1 text-sm last:border-b-0">
+                    <p className="font-medium text-foreground">{phase.name}</p>
+                    <p className="text-muted">{phase.range}</p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
           <Card className="space-y-2">
-            <p className="section-label">This week</p>
-            <p className="text-sm text-foreground">{currentWeek?.keyFocus ?? 'Build consistency and stay aerobic.'}</p>
-            <p className="text-xs text-muted">Target: {currentWeek?.targetHours ?? 5} hrs</p>
+            <p className="section-label">Week 1: Set the floor</p>
+            <div className="space-y-1 text-sm text-foreground">
+              <p>Swim technique</p>
+              <p>Easy aerobic work</p>
+              <p>Strength support</p>
+              <p>Long endurance session</p>
+              <p>Recovery spacing</p>
+            </div>
           </Card>
+
           <Card className="space-y-2">
-            <p className="section-label">What Tempo will watch</p>
+            <p className="section-label">Why this fits</p>
             <p className="text-sm text-foreground">
-              Workload trend, recovery signal drift, and missed-session spillover.
+              Tempo is starting with a controlled base week because your goal is long-range, your
+              schedule allows {draft.weeklyAvailability === '6_plus' ? '6+' : draft.weeklyAvailability ?? '4'} training
+              days, and consistency matters more than intensity right now.
             </p>
           </Card>
-          <Card className="space-y-2">
-            <p className="section-label">Why this plan fits</p>
-            <p className="text-sm text-foreground">
-              Matched to your frequency, weekly availability, and constraints with recovery space built in.
-            </p>
-          </Card>
+
           {previewWeek && (
             <Card className="space-y-1.5">
-              <p className="section-label">Week preview</p>
+              <p className="section-label">Week 1 preview</p>
               {(currentWeek?.plannedSessions ?? []).slice(0, 5).map((session, idx) => (
                 <p key={`${session.day}-${idx}`} className="text-sm text-foreground">
                   {session.day?.toUpperCase()}: {session.details ?? session.title ?? 'Session'}
@@ -464,60 +543,72 @@ export function Onboarding() {
               ))}
             </Card>
           )}
-          <Button type="button" onClick={() => setStep('health')}>
-            Start this plan
+
+          <Card className="space-y-2">
+            <p className="section-label">Adjust before you start</p>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <button
+                type="button"
+                className="rounded-[16px] border border-border bg-surface px-3 py-2 text-left text-foreground"
+                onClick={() => commit({ firstBlockMode: 'conservative' })}
+              >
+                Lower intensity
+              </button>
+              <button
+                type="button"
+                className="rounded-[16px] border border-border bg-surface px-3 py-2 text-left text-foreground"
+                onClick={() => {
+                  setStartingIndex(2);
+                  setStep('starting_point');
+                }}
+              >
+                Change training days
+              </button>
+              <button
+                type="button"
+                className="rounded-[16px] border border-border bg-surface px-3 py-2 text-left text-foreground"
+                onClick={() => {
+                  setStartingIndex(3);
+                  setStep('starting_point');
+                }}
+              >
+                Add constraint
+              </button>
+              <button
+                type="button"
+                className="rounded-[16px] border border-border bg-surface px-3 py-2 text-left text-foreground"
+                onClick={() => setPreviewWeek((v) => !v)}
+              >
+                Preview Week 1
+              </button>
+            </div>
+          </Card>
+
+          <Button type="button" onClick={() => setStep('health_sync')}>
+            Start plan
           </Button>
-          <div className="grid grid-cols-3 gap-2 text-xs">
-            <button
-              type="button"
-              className="rounded-xl border border-border bg-surface px-2 py-2 text-foreground"
-              onClick={() => {
-                setStartingIndex(0);
-                setStep('starting_point');
-              }}
-            >
-              Adjust plan
-            </button>
-            <button
-              type="button"
-              className="rounded-xl border border-border bg-surface px-2 py-2 text-foreground"
-              onClick={() => setStep('goal')}
-            >
-              Change goal
-            </button>
-            <button
-              type="button"
-              className="rounded-xl border border-border bg-surface px-2 py-2 text-foreground"
-              onClick={() => setPreviewWeek((v) => !v)}
-            >
-              Preview first week
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setStep('goal')}
+            className="w-full rounded-xl px-3 py-2 text-sm font-medium text-muted underline"
+          >
+            Edit goal
+          </button>
         </div>
       )}
 
-      {step === 'health' && (
+      {step === 'health_sync' && (
         <div className="space-y-4 py-4">
-          <PageHeader title="Make Tempo more accurate" />
+          <PageHeader title="Make Tempo adapt automatically" />
           <p className="text-sm text-muted">
-            Apple Health helps Tempo read workouts, sleep, heart rate, weight, steps, and recovery
-            signals without manual logging.
+            Connect Apple Health so Tempo can understand workouts, recovery, sleep, and daily load
+            without manual entry.
           </p>
-          <div className="grid grid-cols-2 gap-2">
-            {(
-              [
-                ['workouts', 'Workouts'],
-                ['heartRate', 'Heart rate'],
-                ['sleep', 'Sleep'],
-                ['weight', 'Weight'],
-                ['steps', 'Steps'],
-              ] as [HealthPermissionKey, string][]
-            ).map(([key, label]) => (
-              <Card key={key} className="!p-3">
+          <div className="space-y-2">
+            {HEALTH_PERMISSION_EXPLANATIONS.map(([key, label, note]) => (
+              <Card key={key} className="!p-3.5">
                 <p className="text-sm font-semibold text-foreground">{label}</p>
-                <p className="text-xs text-muted">
-                  {draft.healthPermissions[key] ? 'Connected' : 'Not connected'}
-                </p>
+                <p className="text-xs text-muted">{note}</p>
               </Card>
             ))}
           </div>
@@ -525,7 +616,7 @@ export function Onboarding() {
             type="button"
             onClick={() => {
               commit({
-                appleHealthPermissionStatus: 'connected',
+                healthConnected: true,
                 healthPermissions: {
                   workouts: true,
                   heartRate: true,
@@ -534,7 +625,7 @@ export function Onboarding() {
                   steps: true,
                 },
               });
-              setStep('tour');
+              setStep('today_briefing');
             }}
           >
             Connect Apple Health
@@ -543,51 +634,55 @@ export function Onboarding() {
             type="button"
             className="w-full rounded-xl px-3 py-2 text-sm font-medium text-muted underline"
             onClick={() => {
-              commit({ appleHealthPermissionStatus: 'later' });
-              setStep('tour');
+              commit({ healthConnected: false });
+              setStep('today_briefing');
             }}
           >
-            Do this later
+            Not now
           </button>
+          <p className="text-center text-xs text-muted">You control Health permissions in iOS Settings.</p>
         </div>
       )}
 
-      {step === 'tour' && (
+      {step === 'today_briefing' && (
         <div className="space-y-4 py-4">
-          <PageHeader title="Quick tour" subtitle="Short, dismissible overview." />
-          <Card className="space-y-2">
-            <p className="text-xs uppercase tracking-[0.08em] text-muted">
-              Step {tourIndex + 1} of {TOUR_STEPS.length}
+          <PageHeader title="Today's briefing" />
+          <Card className="space-y-1 rounded-[22px] border-accent/30 bg-[#e8f4ee]">
+            <p className="text-lg font-semibold text-foreground">Week 1 starts today.</p>
+            <p className="text-sm text-muted">
+              Your first block is focused on consistency, easy aerobic work, and recovery spacing.
             </p>
-            <p className="text-lg font-semibold text-foreground">{TOUR_STEPS[tourIndex].title}</p>
-            <p className="text-sm text-muted">{TOUR_STEPS[tourIndex].body}</p>
           </Card>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setTourIndex((v) => Math.max(0, v - 1))}
-              disabled={tourIndex === 0}
-            >
-              Back
+          <Card className="space-y-1.5">
+            <p className="section-label">Today</p>
+            <p className="text-sm font-semibold text-foreground">Easy aerobic session</p>
+            <p className="text-sm text-foreground">30-45 min</p>
+            <p className="text-xs text-muted">Why: Build the floor without adding unnecessary fatigue.</p>
+          </Card>
+          <Card className="space-y-1.5">
+            <p className="section-label">Need to adjust?</p>
+            <p className="text-sm text-muted">
+              Move a workout, lower intensity, or tell Tempo you&apos;re sore.
+            </p>
+          </Card>
+          {!draft.healthConnected && (
+            <Card className="space-y-1.5">
+              <p className="text-sm font-semibold text-foreground">
+                Connect Apple Health to track completed sessions automatically.
+              </p>
+            </Card>
+          )}
+          <Button type="button" onClick={() => finishOnboarding('/')}>
+            Start Week 1
+          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button type="button" variant="ghost" onClick={() => finishOnboarding('/')}>
+              Adjust today
             </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                if (tourIndex < TOUR_STEPS.length - 1) setTourIndex((v) => v + 1);
-                else completeSetup();
-              }}
-            >
-              {tourIndex < TOUR_STEPS.length - 1 ? 'Next' : 'Finish setup'}
+            <Button type="button" variant="ghost" onClick={() => finishOnboarding('/coach')}>
+              Ask Tempo
             </Button>
           </div>
-          <button
-            type="button"
-            className="w-full rounded-xl px-3 py-2 text-sm font-medium text-muted underline"
-            onClick={completeSetup}
-          >
-            Skip tour
-          </button>
         </div>
       )}
     </div>

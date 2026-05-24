@@ -249,13 +249,13 @@ export type CurrentTrainingFrequency =
   | '5_plus_days'
   | 'coming_back';
 
-export type PlanPriority =
-  | 'finish_strong'
-  | 'get_faster'
-  | 'build_consistency'
-  | 'avoid_injury'
-  | 'body_composition'
-  | 'balance_strength_endurance';
+export type ProtectedPriority =
+  | 'recovery'
+  | 'schedule'
+  | 'injury_history'
+  | 'strength_work'
+  | 'race_performance'
+  | 'consistency';
 
 export type WeeklyAvailability = '2' | '3' | '4' | '5' | '6_plus';
 
@@ -267,7 +267,7 @@ export type ConstraintType =
   | 'travel'
   | 'no_constraints';
 
-export type PlanIntensityPreference =
+export type FirstBlockMode =
   | 'conservative'
   | 'balanced'
   | 'aggressive'
@@ -275,25 +275,23 @@ export type PlanIntensityPreference =
 
 export type HealthPermissionKey = 'workouts' | 'heartRate' | 'sleep' | 'weight' | 'steps';
 
-export type AppleHealthPermissionStatus = 'not_requested' | 'connected' | 'later';
-
 export type OnboardingState = {
   goalType?: GoalType;
   rawGoalInput?: string;
   eventUrl?: string;
+  eventName?: string;
   eventDate?: string;
   sport?: string;
   distance?: string;
   currentTrainingFrequency?: CurrentTrainingFrequency;
   weeklyAvailability?: WeeklyAvailability;
-  planPriority?: PlanPriority;
+  protectedPriority?: ProtectedPriority;
   constraints: ConstraintType[];
   injuryNotes?: string;
-  planIntensityPreference: PlanIntensityPreference;
-  appleHealthPermissionStatus: AppleHealthPermissionStatus;
+  firstBlockMode: FirstBlockMode;
+  healthConnected: boolean;
   healthPermissions: Record<HealthPermissionKey, boolean>;
   onboardingCompleted: boolean;
-  tourCompleted: boolean;
   activePlanCreated: boolean;
   generatedPlanName?: string;
   generatedAt?: string;

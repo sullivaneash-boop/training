@@ -151,7 +151,7 @@ export function Today() {
     Boolean,
   ) as string[];
   const activationPending = onboarding.onboardingCompleted && !onboarding.activePlanCreated;
-  const healthConnected = onboarding.appleHealthPermissionStatus === 'connected';
+  const healthConnected = onboarding.healthConnected;
 
   return (
     <div className="space-y-4.5 pb-2">
