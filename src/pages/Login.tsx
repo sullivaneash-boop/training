@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PrimaryButton } from '../components/PrimaryButton';
+import { LandingPage } from '../components/landing/LandingPage';
 import { checkAuth, legacyLogin } from '../lib/auth';
 import { authClient } from '../lib/auth-client';
 import { loadOnboarding } from '../lib/storage';
@@ -26,6 +27,7 @@ export function Login() {
   const [showAuthPanel, setShowAuthPanel] = useState(false);
   const [authMode, setAuthMode] = useState<'sign_in' | 'sign_up'>('sign_in');
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const authPanelRef = useRef<HTMLDivElement | null>(null);
 
   function pushToast(message: string, level: ToastLevel = 'warning') {
     const id = Date.now() + Math.floor(Math.random() * 1000);
@@ -116,8 +118,16 @@ export function Login() {
     reportIssue(maybeErr ?? 'Apple sign-in is not configured yet. Use email for now.', 'warning');
   }
 
+  useEffect(() => {
+    if (!showAuthPanel) return;
+    const timeout = window.setTimeout(() => {
+      authPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 70);
+    return () => window.clearTimeout(timeout);
+  }, [showAuthPanel]);
+
   return (
-    <div className="relative min-h-dvh overflow-x-hidden bg-[#f6f7f3] px-5 pb-10 pt-safe-top">
+    <div className="relative min-h-dvh overflow-x-hidden bg-[#f7f7f4] px-5 pb-10 pt-safe-top">
       <div className="pointer-events-none fixed inset-x-0 top-4 z-50 mx-auto flex w-full max-w-sm flex-col gap-2 px-4">
         {toasts.map((toast) => (
           <div
@@ -133,80 +143,20 @@ export function Login() {
         ))}
       </div>
       <div className="mx-auto w-full max-w-md">
-        <div className="pointer-events-none absolute inset-x-0 top-20 h-72 bg-[radial-gradient(circle_at_50%_10%,rgba(53,160,108,0.12),transparent_58%)]" />
-        <div className="relative">
-          <p className="pt-7 text-[0.88rem] font-semibold tracking-[0.35em] text-[#71808f]">TEMPO</p>
-          <h1 className="mt-3 max-w-[13ch] text-5xl font-semibold tracking-tight text-[#101826]">
-            Know how to train today.
-          </h1>
-          <p className="mt-4 max-w-[31ch] text-[1.05rem] leading-relaxed text-[#5d6b77]">
-            Tempo turns your health and training data into a daily briefing on readiness, recovery,
-            and what to do next.
-          </p>
-        </div>
-
-        <div className="relative mt-8 rounded-[2.3rem] border border-[#e8ece7] bg-[#fbfcf9] px-5 pb-6 pt-5 shadow-[0_16px_40px_rgba(27,54,80,0.12)]">
-          <div className="absolute -left-6 top-20 w-28 rounded-2xl border border-[#e7ece8] bg-white p-3 shadow-[0_8px_24px_rgba(32,53,72,0.08)]">
-            <p className="text-[0.68rem] font-semibold text-[#5e6e7a]">Sleep</p>
-            <p className="mt-1 text-xl font-semibold text-[#182230]">7h 42m</p>
-            <p className="text-xs font-medium text-[#3b9b65]">Good</p>
-          </div>
-          <div className="absolute -right-6 top-9 w-28 rounded-2xl border border-[#e7ece8] bg-white p-3 shadow-[0_8px_24px_rgba(32,53,72,0.08)]">
-            <p className="text-[0.68rem] font-semibold text-[#5e6e7a]">Recovery</p>
-            <p className="mt-1 text-3xl font-semibold text-[#182230]">78%</p>
-            <p className="text-xs font-medium text-[#3b9b65]">Good</p>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <p className="text-lg font-semibold text-[#182230]">Daily Briefing</p>
-            <p className="text-xs text-[#7b8894]">May 12</p>
-          </div>
-          <div className="mt-4 rounded-2xl border border-[#e7ece7] bg-white p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full border-8 border-[#e4f2e8] border-r-[#67b97c] border-t-[#67b97c]">
-                <span className="text-xl font-semibold text-[#182230]">85</span>
-              </div>
-              <div>
-                <p className="text-lg font-semibold text-[#2c9a5e]">Ready to train</p>
-                <p className="text-sm text-[#677582]">Your body is primed for quality work today.</p>
-              </div>
-            </div>
-            <div className="mt-3 rounded-xl bg-[#f0f8f2] p-3">
-              <p className="text-xs font-medium uppercase tracking-[0.08em] text-[#5f6d79]">
-                Today&apos;s guidance
-              </p>
-              <p className="mt-1 text-base font-semibold text-[#182230]">Tempo Run · 8 km aerobic</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-8 space-y-3">
-          <button
-            type="button"
-            onClick={() => setShowAuthPanel(true)}
-            className="w-full rounded-2xl bg-[#0f1a2c] px-5 py-4 text-lg font-semibold text-white shadow-[0_12px_28px_rgba(15,26,44,0.26)] transition hover:bg-[#0a1322]"
-          >
-            Get started
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowAuthPanel((v) => !v)}
-            className="w-full rounded-2xl border border-[#d7dfd9] bg-white px-5 py-4 text-lg font-semibold text-[#111c2e] transition hover:border-[#c7d3cc]"
-          >
-            See how it works
-          </button>
-        </div>
-
-        <div className="mt-7 flex justify-center gap-2">
-          <span className="h-2 w-5 rounded-full bg-[#0f1a2c]" />
-          <span className="h-2 w-2 rounded-full bg-[#dce1db]" />
-          <span className="h-2 w-2 rounded-full bg-[#dce1db]" />
-        </div>
-
-        <p className="mt-5 text-center text-sm text-[#6e7a86]">Built for Apple Health and Apple Watch.</p>
+        <LandingPage
+          onGetStarted={() => {
+            setShowAuthPanel(true);
+            setShowEmailForm(false);
+            setShowLegacyForm(false);
+            setError('');
+          }}
+        />
 
         {showAuthPanel && (
-          <div className="mt-8 rounded-3xl border border-border bg-surface p-6 shadow-[0_10px_32px_rgba(19,48,70,0.08)]">
+          <div
+            ref={authPanelRef}
+            className="mt-8 rounded-3xl border border-border bg-surface p-6 shadow-[0_10px_32px_rgba(19,48,70,0.08)]"
+          >
             <p className="text-sm font-semibold tracking-[0.14em] text-muted">ACCOUNT</p>
             <p className="mt-1 text-sm text-muted">Choose a sign-in method to continue your setup.</p>
 
