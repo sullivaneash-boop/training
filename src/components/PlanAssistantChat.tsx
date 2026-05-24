@@ -98,7 +98,7 @@ export function PlanAssistantChat() {
   }, [open]);
 
   if (!plan || !isAiEnabled()) return null;
-  const showFab = location.pathname !== '/coach' && !open;
+  const showFab = location.pathname !== '/coach' && location.pathname !== '/' && !open;
   const weekNum = getWeekNumber(plan);
   const weekPlan = getWeekPlan(plan, weekNum);
   const daysLeft = daysUntilRace(plan);
