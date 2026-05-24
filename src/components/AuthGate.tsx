@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { checkAuth } from '../lib/auth';
+import { loadOnboarding } from '../lib/storage';
 
 export function AuthGate() {
   const location = useLocation();
@@ -28,6 +29,14 @@ export function AuthGate() {
 
   if (state === 'login') {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+
+  const onboarding = loadOnboarding();
+  if (!onboarding.onboardingCompleted && location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />;
+  }
+  if (onboarding.onboardingCompleted && location.pathname === '/onboarding') {
+    return <Navigate to="/" replace />;
   }
 
   return <Outlet />;

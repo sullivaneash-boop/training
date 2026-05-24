@@ -24,7 +24,7 @@ import { formatRaceDate, goalLabel, readinessAction } from '../lib/format';
 import { isAiEnabled } from '../lib/storage';
 
 export function Today() {
-  const { plan, athlete, readiness, workouts, loading } = useTrainingData();
+  const { plan, athlete, readiness, workouts, onboarding, updateOnboarding, loading } = useTrainingData();
   const planAssistant = usePlanAssistant();
   const today = new Date();
   const dateStr = today.toISOString().slice(0, 10);
@@ -150,6 +150,8 @@ export function Today() {
   const weeklyKeyChips = [weekPlan?.longRide, weekPlan?.longRun, weekPlan?.longSwim].filter(
     Boolean,
   ) as string[];
+  const activationPending = onboarding.onboardingCompleted && !onboarding.activePlanCreated;
+  const healthConnected = onboarding.appleHealthPermissionStatus === 'connected';
 
   return (
     <div className="space-y-4.5 pb-2">
@@ -157,6 +159,7 @@ export function Today() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-muted">{dayName}</p>
+            {activationPending && <p className="text-xs font-semibold uppercase tracking-[0.1em] text-accent">Today&apos;s briefing</p>}
             <h1 className="text-[30px] font-semibold tracking-tight text-foreground">
               Week {weekNum}
               <span className="text-2xl font-normal text-muted"> / {totalWeeks}</span>
@@ -171,6 +174,27 @@ export function Today() {
           )}
         </div>
       </header>
+
+      {activationPending && (
+        <Card className="space-y-3 border-accent/30 bg-[#e8f4ee]">
+          <p className="text-xl font-semibold text-foreground">Your plan starts today</p>
+          <p className="text-sm text-muted">
+            Start Week 1 to activate daily guidance and keep the first block structured.
+          </p>
+          <button
+            type="button"
+            onClick={() =>
+              updateOnboarding({
+                ...onboarding,
+                activePlanCreated: true,
+              })
+            }
+            className="min-h-[48px] w-full rounded-2xl bg-accent px-4 py-3 text-base font-semibold text-white shadow-[0_8px_18px_rgba(13,148,136,0.26)]"
+          >
+            Start Week 1
+          </button>
+        </Card>
+      )}
 
       <section className="space-y-3">
         <p className="section-label">Today command</p>
@@ -330,6 +354,18 @@ export function Today() {
             <span className="shrink-0 text-sm font-semibold text-accent">Adjust</span>
           </div>
         </button>
+      )}
+
+      {!healthConnected && onboarding.onboardingCompleted && (
+        <Card className="space-y-1.5">
+          <p className="text-sm font-semibold text-foreground">Connect Apple Health for better accuracy</p>
+          <p className="text-xs text-muted">
+            Non-blocking: Tempo works without it, but health signals improve load and recovery decisions.
+          </p>
+          <Link to="/settings" className="text-sm font-medium text-accent">
+            Connect later in Settings →
+          </Link>
+        </Card>
       )}
 
       {athleteGoal && (

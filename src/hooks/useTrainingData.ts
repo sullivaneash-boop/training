@@ -3,6 +3,7 @@ import type {
   AppSettings,
   AthleteProfile,
   CoachInsight,
+  OnboardingState,
   ReadinessCheck,
   TrainingPlan,
   WorkoutLog,
@@ -14,7 +15,9 @@ import {
   loadPlan,
   loadReadiness,
   loadSettings,
+  loadOnboarding,
   loadWorkouts,
+  saveOnboarding,
   saveAthlete,
   saveCoachInsights,
   savePlan,
@@ -29,6 +32,7 @@ export function useTrainingData() {
   const [workouts, setWorkouts] = useState<WorkoutLog[]>([]);
   const [readiness, setReadiness] = useState<ReadinessCheck[]>([]);
   const [insights, setInsights] = useState<CoachInsight[]>([]);
+  const [onboarding, setOnboarding] = useState<OnboardingState>(loadOnboarding());
   const [settings, setSettings] = useState<AppSettings>({
     aiSafetyMode: 'on_demand',
     deepseekModel: 'deepseek-v4-flash',
@@ -42,6 +46,7 @@ export function useTrainingData() {
     setWorkouts(loadWorkouts());
     setReadiness(loadReadiness());
     setInsights(loadCoachInsights());
+    setOnboarding(loadOnboarding());
     setSettings(loadSettings());
   }, []);
 
@@ -57,6 +62,7 @@ export function useTrainingData() {
       setWorkouts(loadWorkouts());
       setReadiness(loadReadiness());
       setInsights(loadCoachInsights());
+      setOnboarding(loadOnboarding());
       setSettings(loadSettings());
       setLoading(false);
     }
@@ -93,12 +99,18 @@ export function useTrainingData() {
     setSettings(s);
   }, []);
 
+  const updateOnboarding = useCallback((state: OnboardingState) => {
+    saveOnboarding(state);
+    setOnboarding(state);
+  }, []);
+
   return {
     plan,
     athlete,
     workouts,
     readiness,
     insights,
+    onboarding,
     settings,
     loading,
     refresh,
@@ -107,6 +119,7 @@ export function useTrainingData() {
     updateWorkouts,
     updateReadiness,
     updateInsights,
+    updateOnboarding,
     updateSettings,
   };
 }

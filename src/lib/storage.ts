@@ -7,6 +7,7 @@ import type {
   PlanPatch,
   ReadinessCheck,
   TrainingPlan,
+  OnboardingState,
   WorkoutLog,
 } from './types';
 import { parseTrainingPlanMarkdown, validatePlan } from './planParser';
@@ -20,6 +21,7 @@ const KEYS = {
   insights: 'training-coach-insights',
   settings: 'training-settings',
   chat: 'training-chat-session',
+  onboarding: 'training-onboarding',
 } as const;
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -31,6 +33,22 @@ const DEFAULT_SETTINGS: AppSettings = {
 const DEFAULT_ATHLETE: AthleteProfile = {
   id: 'athlete-1',
   goal: 'unknown',
+};
+
+const DEFAULT_ONBOARDING: OnboardingState = {
+  constraints: [],
+  planIntensityPreference: 'balanced',
+  appleHealthPermissionStatus: 'not_requested',
+  healthPermissions: {
+    workouts: false,
+    heartRate: false,
+    sleep: false,
+    weight: false,
+    steps: false,
+  },
+  onboardingCompleted: false,
+  tourCompleted: false,
+  activePlanCreated: false,
 };
 
 // ─── Plan ────────────────────────────────────────────────────────────────────
@@ -176,6 +194,46 @@ export function isAiEnabled(): boolean {
   return loadSettings().aiSafetyMode !== 'disabled';
 }
 
+// ─── Onboarding ─────────────────────────────────────────────────────────────
+
+export function loadOnboarding(): OnboardingState {
+  try {
+    const raw = localStorage.getItem(KEYS.onboarding);
+    if (!raw) return DEFAULT_ONBOARDING;
+    const parsed = JSON.parse(raw) as Partial<OnboardingState>;
+    return {
+      ...DEFAULT_ONBOARDING,
+      ...parsed,
+      healthPermissions: {
+        ...DEFAULT_ONBOARDING.healthPermissions,
+        ...(parsed.healthPermissions ?? {}),
+      },
+      constraints: parsed.constraints ?? [],
+    };
+  } catch {
+    return DEFAULT_ONBOARDING;
+  }
+}
+
+export function saveOnboarding(state: OnboardingState): void {
+  localStorage.setItem(KEYS.onboarding, JSON.stringify(state));
+}
+
+export function updateOnboarding(partial: Partial<OnboardingState>): OnboardingState {
+  const current = loadOnboarding();
+  const next: OnboardingState = {
+    ...current,
+    ...partial,
+    healthPermissions: {
+      ...current.healthPermissions,
+      ...(partial.healthPermissions ?? {}),
+    },
+    constraints: partial.constraints ?? current.constraints,
+  };
+  saveOnboarding(next);
+  return next;
+}
+
 // ─── Plan assistant chat ───────────────────────────────────────────────────
 
 export function loadChatSession(planId: string): ChatSession {
@@ -277,6 +335,7 @@ export function exportAllData(): string {
       readiness: loadReadiness(),
       insights: loadCoachInsights(),
       settings: loadSettings(),
+      onboarding: loadOnboarding(),
     },
     null,
     2,
@@ -292,6 +351,7 @@ export function importAllData(json: string): { ok: boolean; error?: string } {
       readiness?: ReadinessCheck[];
       insights?: CoachInsight[];
       settings?: AppSettings;
+      onboarding?: OnboardingState;
     };
     if (data.plan) {
       const migrated = migratePlan(data.plan);
@@ -302,6 +362,15 @@ export function importAllData(json: string): { ok: boolean; error?: string } {
     if (data.readiness) saveReadiness(data.readiness.map(migrateReadiness));
     if (data.insights) saveCoachInsights(data.insights);
     if (data.settings) saveSettings(migrateSettings(data.settings));
+    if (data.onboarding)
+      saveOnboarding({
+        ...DEFAULT_ONBOARDING,
+        ...data.onboarding,
+        healthPermissions: {
+          ...DEFAULT_ONBOARDING.healthPermissions,
+          ...(data.onboarding.healthPermissions ?? {}),
+        },
+      });
     return { ok: true };
   } catch {
     return { ok: false, error: 'Invalid JSON file' };

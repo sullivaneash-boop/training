@@ -231,3 +231,70 @@ export type AppSettings = {
   deepseekModel: DeepSeekModel;
   showJsonDebug: boolean;
 };
+
+// ─── Onboarding ─────────────────────────────────────────────────────────────
+
+export type GoalType =
+  | 'race_event'
+  | 'general_fitness'
+  | 'strength'
+  | 'hybrid_training'
+  | 'recovery_return'
+  | 'not_sure';
+
+export type CurrentTrainingFrequency =
+  | 'not_consistent'
+  | '1_2_days'
+  | '3_4_days'
+  | '5_plus_days'
+  | 'coming_back';
+
+export type PlanPriority =
+  | 'finish_strong'
+  | 'get_faster'
+  | 'build_consistency'
+  | 'avoid_injury'
+  | 'body_composition'
+  | 'balance_strength_endurance';
+
+export type WeeklyAvailability = '2' | '3' | '4' | '5' | '6_plus';
+
+export type ConstraintType =
+  | 'injury_pain'
+  | 'limited_equipment'
+  | 'busy_schedule'
+  | 'low_recovery'
+  | 'travel'
+  | 'no_constraints';
+
+export type PlanIntensityPreference =
+  | 'conservative'
+  | 'balanced'
+  | 'aggressive'
+  | 'flexible';
+
+export type HealthPermissionKey = 'workouts' | 'heartRate' | 'sleep' | 'weight' | 'steps';
+
+export type AppleHealthPermissionStatus = 'not_requested' | 'connected' | 'later';
+
+export type OnboardingState = {
+  goalType?: GoalType;
+  rawGoalInput?: string;
+  eventUrl?: string;
+  eventDate?: string;
+  sport?: string;
+  distance?: string;
+  currentTrainingFrequency?: CurrentTrainingFrequency;
+  weeklyAvailability?: WeeklyAvailability;
+  planPriority?: PlanPriority;
+  constraints: ConstraintType[];
+  injuryNotes?: string;
+  planIntensityPreference: PlanIntensityPreference;
+  appleHealthPermissionStatus: AppleHealthPermissionStatus;
+  healthPermissions: Record<HealthPermissionKey, boolean>;
+  onboardingCompleted: boolean;
+  tourCompleted: boolean;
+  activePlanCreated: boolean;
+  generatedPlanName?: string;
+  generatedAt?: string;
+};

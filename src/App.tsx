@@ -9,6 +9,7 @@ import { Readiness } from './pages/Readiness';
 import { Coach } from './pages/Coach';
 import { Settings } from './pages/Settings';
 import { ShortcutLog } from './pages/ShortcutLog';
+import { Onboarding } from './pages/Onboarding';
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/shortcut-log" element={<ShortcutLog />} />
         <Route element={<AuthGate />}>
+        <Route path="/onboarding" element={<Onboarding />} />
         <Route element={<Layout />}>
           <Route index element={<Today />} />
           <Route path="week" element={<Week />} />
