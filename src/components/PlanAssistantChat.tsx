@@ -263,7 +263,7 @@ export function PlanAssistantChat() {
           type="button"
           onClick={() => setOpen(true)}
           className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+5.8rem)] right-4 z-[60] flex h-12 w-12 items-center justify-center rounded-full border border-accent/30 bg-accent text-white shadow-[0_8px_22px_rgba(13,148,136,0.35)] transition-transform duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          aria-label="Open plan assistant"
+          aria-label="Open Tempo assistant"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
@@ -290,12 +290,12 @@ export function PlanAssistantChat() {
           }`}
           role="dialog"
           aria-modal="true"
-          aria-label="Plan Assistant"
+          aria-label="Tempo Assistant"
         >
           <header className="flex shrink-0 items-start justify-between border-b border-border px-4 py-3">
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-semibold text-foreground">Plan Assistant</h2>
+                <h2 className="text-base font-semibold text-foreground">Tempo Assistant</h2>
                 <span className="h-2 w-2 rounded-full bg-accent/75" aria-label="AI enabled" />
               </div>
               <p className="text-xs text-muted">Shift dates · adjust volume · fix schedule</p>

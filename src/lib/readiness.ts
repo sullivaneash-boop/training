@@ -85,22 +85,22 @@ export function statusLabel(status: ReadinessResult): string {
 export function statusColor(status: ReadinessResult): string {
   switch (status) {
     case 'green':
-      return 'text-emerald-800';
+      return 'text-[#1f7b5d]';
     case 'yellow':
-      return 'text-amber-800';
+      return 'text-[#8a6545]';
     case 'red':
-      return 'text-rose-800';
+      return 'text-[#9a4f47]';
   }
 }
 
 export function statusBg(status: ReadinessResult): string {
   switch (status) {
     case 'green':
-      return 'bg-emerald-50 border-emerald-200';
+      return 'bg-[#eef6f2] border-[#cde4da]';
     case 'yellow':
-      return 'bg-amber-50 border-amber-200';
+      return 'bg-[#faf4ee] border-[#efd7c3]';
     case 'red':
-      return 'bg-rose-50 border-rose-200';
+      return 'bg-[#f9efee] border-[#edcfcd]';
   }
 }
 

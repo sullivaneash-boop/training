@@ -38,7 +38,7 @@ export function BottomNav() {
               <>
                 <span
                   className={`rounded-full p-1.5 transition-colors ${
-                    isActive ? 'bg-teal-50 text-accent' : 'text-muted'
+                    isActive ? 'bg-[#e8f4ee] text-accent' : 'text-muted'
                   }`}
                 >
                   <Icon className={isActive ? 'text-accent' : 'text-muted'} />

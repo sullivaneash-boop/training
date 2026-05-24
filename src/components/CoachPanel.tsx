@@ -6,11 +6,11 @@ import { Button } from './FormField';
 function signalColor(signal: string): string {
   switch (signal) {
     case 'green':
-      return 'text-emerald-800';
+      return 'text-[#1f7b5d]';
     case 'yellow':
-      return 'text-amber-800';
+      return 'text-[#8a6545]';
     case 'red':
-      return 'text-rose-800';
+      return 'text-[#9a4f47]';
     default:
       return 'text-foreground';
   }
@@ -43,8 +43,8 @@ export function CoachPanel({
 
   if (error) {
     return (
-      <Card className="border-rose-200 bg-rose-50/50">
-        <p className="text-sm text-rose-800">{error}</p>
+      <Card className="border-[#edcfcd] bg-[#f9efee]">
+        <p className="text-sm text-[#9a4f47]">{error}</p>
         <p className="mt-1 text-sm text-muted">App still works — try again or check API key.</p>
       </Card>
     );
@@ -59,11 +59,11 @@ export function CoachPanel({
   }
 
   return (
-    <Card className="space-y-3">
+    <Card className="space-y-3.5">
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-xs font-medium text-muted">{response.mode.replace(/_/g, ' ')}</p>
-          <p className={`text-sm font-bold uppercase ${signalColor(response.signal)}`}>
+          <p className={`text-xs font-bold uppercase tracking-[0.12em] ${signalColor(response.signal)}`}>
             {response.signal}
           </p>
         </div>
@@ -93,7 +93,7 @@ export function CoachPanel({
           <p className="text-xs font-medium text-muted">Key findings</p>
           <ul className="mt-1 space-y-1 text-sm text-foreground/90">
             {response.keyFindings.map((f) => (
-              <li key={f}>· {f}</li>
+              <li key={f}>• {f}</li>
             ))}
           </ul>
         </div>
@@ -109,7 +109,7 @@ export function CoachPanel({
           <p className="text-xs font-medium text-muted">Adjustments</p>
           <ul className="mt-1 space-y-2 text-sm">
             {response.adjustments.map((a, i) => (
-              <li key={i} className="rounded-lg bg-neutral-50 p-2">
+              <li key={i} className="rounded-xl border border-border bg-background p-2.5">
                 <span className="text-xs font-medium uppercase text-muted">{a.priority}</span>
                 <p className="text-foreground">{a.action}</p>
                 <p className="text-xs text-muted">{a.reason}</p>
@@ -122,9 +122,9 @@ export function CoachPanel({
       {response.warningFlags.length > 0 && (
         <div>
           <p className="text-xs font-medium text-muted">Warnings</p>
-          <ul className="text-sm text-amber-800">
+          <ul className="text-sm text-[#8a6545]">
             {response.warningFlags.map((w) => (
-              <li key={w}>· {w}</li>
+              <li key={w}>• {w}</li>
             ))}
           </ul>
         </div>
@@ -135,7 +135,7 @@ export function CoachPanel({
           <p className="text-xs font-medium text-muted">Questions for you</p>
           <ul className="text-sm text-muted">
             {response.questionsForUser.map((q) => (
-              <li key={q}>· {q}</li>
+              <li key={q}>• {q}</li>
             ))}
           </ul>
         </div>

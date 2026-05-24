@@ -172,7 +172,7 @@ function extractBulletSection(md: string, heading: RegExp): string[] {
 
 function extractTitle(md: string): string {
   const h1 = md.match(/^#\s+(.+)$/m);
-  return h1?.[1]?.replace(/\*\*/g, '').trim() ?? 'Training Plan';
+  return h1?.[1]?.replace(/\*\*/g, '').trim() ?? 'Tempo Plan';
 }
 
 function inferSportTypes(md: string): string[] {
@@ -221,7 +221,7 @@ export function parseTrainingPlanMarkdown(
   if (!phases.length && weeks.length) {
     const inferred = new Map<string, { start: number; end: number }>();
     for (const w of weeks) {
-      const name = w.phase ?? 'Training';
+      const name = w.phase ?? 'Base';
       const ex = inferred.get(name);
       if (!ex) inferred.set(name, { start: w.week, end: w.week });
       else ex.end = w.week;

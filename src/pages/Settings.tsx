@@ -83,7 +83,7 @@ export function Settings() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Settings" subtitle="Profile, plan, AI, and backups." />
+      <PageHeader title="Settings" subtitle="Athlete profile, Tempo AI, and local backups." />
 
       <section className="space-y-3">
         <h2 className="section-label">Athlete profile</h2>
@@ -140,7 +140,7 @@ export function Settings() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="section-label">AI settings</h2>
+        <h2 className="section-label">Tempo AI settings</h2>
         <div>
           <Label>Cost safety</Label>
           <Select
@@ -192,7 +192,7 @@ export function Settings() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="section-label">Import training plan (.md)</h2>
+        <h2 className="section-label">Import plan markdown (.md)</h2>
         <input
           ref={fileRef}
           type="file"
@@ -208,7 +208,7 @@ export function Settings() {
           <Textarea
             value={pasteMd}
             onChange={(e) => setPasteMd(e.target.value)}
-            placeholder="# My Race Plan…"
+            placeholder="# Tempo race plan..."
             className="min-h-[120px] font-mono text-xs"
           />
         </div>
@@ -234,7 +234,7 @@ export function Settings() {
         ))}
         {importMsg && <p className="text-sm text-emerald-700">{importMsg}</p>}
         <p className="text-xs text-muted">
-          Workout logs stay separate when you switch plans. Sample plan in public/ is test input only.
+          Workout logs stay separate when you switch plans. The sample plan in public/ is test input only.
         </p>
       </section>
 
@@ -245,7 +245,7 @@ export function Settings() {
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `training-backup-${new Date().toISOString().slice(0, 10)}.json`;
+          a.download = `tempo-backup-${new Date().toISOString().slice(0, 10)}.json`;
           a.click();
           URL.revokeObjectURL(url);
         }}>
@@ -256,7 +256,7 @@ export function Settings() {
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `workouts-${new Date().toISOString().slice(0, 10)}.csv`;
+          a.download = `tempo-workouts-${new Date().toISOString().slice(0, 10)}.csv`;
           a.click();
           URL.revokeObjectURL(url);
         }}>

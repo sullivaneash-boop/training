@@ -10,7 +10,7 @@ const variants: Record<Variant, string> = {
   ghost:
     'border border-transparent bg-transparent text-foreground hover:bg-neutral-100 active:bg-neutral-200',
   warning:
-    'border border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100 active:bg-amber-100',
+    'border border-[#efd7c3] bg-[#faf4ee] text-[#8a6545] hover:bg-[#f7eadf] active:bg-[#f7eadf]',
 };
 
 export function PrimaryButton({

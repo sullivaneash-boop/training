@@ -44,7 +44,7 @@ export function daysUntilRace(plan: TrainingPlan, date: Date = new Date()): numb
 }
 
 export function getPhaseLabel(phase?: string): string {
-  if (!phase) return 'Training';
+  if (!phase) return 'Base';
   return phase.replace(/^\d+\s*[—–-]\s*/i, '').trim();
 }
 

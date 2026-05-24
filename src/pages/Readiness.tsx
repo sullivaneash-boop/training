@@ -74,7 +74,7 @@ export function Readiness() {
     <div className="space-y-5">
       <PageHeader
         title="Readiness"
-        subtitle="This is an ego check, not a diagnosis."
+        subtitle="Calm signal check before today's work."
       />
 
       {result && (
@@ -140,7 +140,7 @@ export function Readiness() {
           Knee / run pain
         </label>
         <PrimaryButton type="button" onClick={handleCheck}>
-          Get readiness
+          Run readiness check
         </PrimaryButton>
       </div>
 
@@ -153,7 +153,7 @@ export function Readiness() {
 
       {result && isAiEnabled() && (
         <AskDeepSeekButton
-          label="Explain with coach"
+          label="Explain with Tempo AI"
           loading={coach.loading}
           onClick={explainWithAi}
         />

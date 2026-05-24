@@ -96,7 +96,7 @@ export function Coach() {
     <div className="space-y-6">
       <PageHeader
         title="Coach"
-        subtitle="Choose an action and get a focused recommendation."
+        subtitle="Choose a focused action. Get clear guidance in one pass."
       />
 
       <div className="space-y-2.5">
@@ -130,7 +130,7 @@ export function Coach() {
               />
             </svg>
           }
-          title="Plan Assistant"
+          title="Tempo Assistant"
           description="Shift dates, adjust volume, and preview changes before saving."
           actionLabel="Open"
           onClick={planAssistant.open}

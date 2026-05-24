@@ -35,7 +35,7 @@ export function Button({
     ghost:
       'border border-border bg-surface text-foreground hover:bg-neutral-50 focus-visible:ring-accent',
     danger:
-      'border border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100 focus-visible:ring-amber-500',
+      'border border-[#efd7c3] bg-[#faf4ee] text-[#8a6545] hover:bg-[#f7eadf] focus-visible:ring-[#c9927b]',
   };
   return (
     <button

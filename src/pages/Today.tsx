@@ -45,11 +45,11 @@ export function Today() {
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Today</h1>
           <p className="mt-2 text-sm text-muted">
-            Import your plan to start. Do the boring work.
+            Import your plan to generate a clear daily brief.
           </p>
         </div>
         <ActionLink to="/settings" variant="primary" className="col-span-2">
-          Import training plan
+          Import your plan
         </ActionLink>
       </div>
     );
@@ -74,7 +74,7 @@ export function Today() {
     const details = session?.details ?? sessionText ?? '';
     const lower = details.toLowerCase();
     const sport = (session?.type ?? 'session').replace(/^\w/, (c) => c.toUpperCase());
-    const title = session?.title ?? details.split('+')[0]?.trim() ?? 'Training session';
+    const title = session?.title ?? details.split('+')[0]?.trim() ?? 'Tempo session';
     const durationMatch = details.match(
       /(\d+(?:\s*[-to]{1,3}\s*\d+)?\s*(?:min|mins|minutes|hr|hrs|hour|hours))/i,
     );
@@ -269,7 +269,7 @@ export function Today() {
           onClick={planAssistant.open}
           className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-left text-sm transition-colors hover:border-neutral-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.99]"
         >
-          <span className="font-semibold text-foreground">Adapt my plan</span>
+          <span className="font-semibold text-foreground">Open Tempo Assistant</span>
           <span className="mt-0.5 block text-muted">Shift dates, volume, or schedule</span>
         </button>
       )}
