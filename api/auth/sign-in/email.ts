@@ -1,4 +1,4 @@
-import { betterAuthNodeHandler } from '../lib/betterAuthNode.js';
+import { betterAuthNodeHandler } from '../../lib/betterAuthNode.js';
 
 export const config = { api: { bodyParser: false } };
 

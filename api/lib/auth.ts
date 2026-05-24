@@ -2,8 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fromNodeHeaders } from 'better-auth/node';
-import { auth as betterAuth } from './betterAuth.js';
 
 const COOKIE_NAME = 'training_session';
 const SESSION_DAYS = 30;
@@ -44,7 +42,7 @@ export function isAuthEnabled(): boolean {
 }
 
 export function isBetterAuthEnabled(): boolean {
-  return Boolean(process.env.BETTER_AUTH_SECRET && process.env.DATABASE_URL);
+  return Boolean((process.env.BETTER_AUTH_SECRET || process.env.AUTH_SECRET) && process.env.DATABASE_URL);
 }
 
 function getAuthSecret(): string {
@@ -133,6 +131,10 @@ export function isRequestAuthenticated(req: VercelRequest): boolean {
 export async function getBetterAuthSession(req: VercelRequest) {
   if (!isBetterAuthEnabled()) return null;
   try {
+    const [{ fromNodeHeaders }, { auth: betterAuth }] = await Promise.all([
+      import('better-auth/node'),
+      import('./betterAuth.js'),
+    ]);
     return await betterAuth.api.getSession({
       headers: fromNodeHeaders(req.headers),
     });

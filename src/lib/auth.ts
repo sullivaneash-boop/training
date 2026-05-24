@@ -1,18 +1,5 @@
 export async function checkAuth(): Promise<{ authenticated: boolean; authRequired: boolean }> {
   try {
-    const sessionRes = await fetch('/api/auth/get-session', {
-      credentials: 'include',
-      cache: 'no-store',
-    });
-    if (sessionRes.ok) {
-      const sessionData = (await sessionRes.json().catch(() => ({}))) as {
-        session?: unknown;
-        user?: unknown;
-      };
-      const authenticated = Boolean(sessionData.session && sessionData.user);
-      return { authenticated, authRequired: true };
-    }
-
     const fallbackRes = await fetch('/api/auth/check', {
       credentials: 'include',
       cache: 'no-store',
